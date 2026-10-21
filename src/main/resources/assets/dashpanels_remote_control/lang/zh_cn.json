@@ -1,0 +1,19 @@
+{
+  "itemGroup.dashpanels_remote_control": "面板遥控",
+  "block.dashpanels_remote_control.panel_remote_receiver": "面板遥控接收器",
+  "item.dashpanels_remote_control.panel_remote": "面板遥控器",
+  "gui.dashpanels_remote_control.remote.title": "面板遥控器",
+  "gui.dashpanels_remote_control.remote.hint": "右键操作模块 · 滚轮调数值 · 左键拖动旋转 · Ctrl+滚轮缩放",
+  "gui.dashpanels_remote_control.remote.state": "调节中 · 拖动鼠标",
+  "gui.dashpanels_remote_control.remote.pointer": "指针隐藏",
+  "gui.dashpanels_remote_control.remote.clicked": "已操作：%s",
+  "gui.dashpanels_remote_control.remote.holding": "拖动鼠标调节 · 松手结束 · ESC 退出",
+  "gui.dashpanels_remote_control.remote.unavailable": "面板不在客户端加载范围内",
+  "gui.dashpanels_remote_control.remote.not_bound": "还没有绑定接收器（潜行右键接收器绑定）",
+  "gui.dashpanels_remote_control.remote.unbound": "已解除绑定",
+  "gui.dashpanels_remote_control.remote.wrong_dimension": "接收器不在这个维度",
+  "gui.dashpanels_remote_control.remote.too_far": "接收器所在的区块没有加载",
+  "gui.dashpanels_remote_control.remote.no_panel": "这个接收器还没连上面板",
+  "gui.dashpanels_remote_control.remote.bound": "已绑定到这个接收器",
+  "gui.dashpanels_remote_control.remote.bound_without_panel": "但这个接收器还没连上面板"
+}

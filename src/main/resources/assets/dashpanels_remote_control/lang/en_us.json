@@ -1,0 +1,19 @@
+{
+  "itemGroup.dashpanels_remote_control": "Panel Remote",
+  "block.dashpanels_remote_control.panel_remote_receiver": "Panel Remote Receiver",
+  "item.dashpanels_remote_control.panel_remote": "Panel Remote",
+  "gui.dashpanels_remote_control.remote.title": "Panel Remote",
+  "gui.dashpanels_remote_control.remote.hint": "Right click a module · wheel to adjust · drag to turn · Ctrl + wheel to zoom",
+  "gui.dashpanels_remote_control.remote.state": "holding · drag to adjust",
+  "gui.dashpanels_remote_control.remote.pointer": "pointer hidden",
+  "gui.dashpanels_remote_control.remote.clicked": "Used %s",
+  "gui.dashpanels_remote_control.remote.holding": "Drag to adjust · release to drop · ESC to stop",
+  "gui.dashpanels_remote_control.remote.unavailable": "The panel is not loaded on this client",
+  "gui.dashpanels_remote_control.remote.not_bound": "No receiver bound yet (sneak + right click a receiver)",
+  "gui.dashpanels_remote_control.remote.unbound": "Binding cleared",
+  "gui.dashpanels_remote_control.remote.wrong_dimension": "That receiver is in another dimension",
+  "gui.dashpanels_remote_control.remote.too_far": "That receiver's chunk is not loaded",
+  "gui.dashpanels_remote_control.remote.no_panel": "That receiver is not connected to a panel yet",
+  "gui.dashpanels_remote_control.remote.bound": "Bound to this receiver",
+  "gui.dashpanels_remote_control.remote.bound_without_panel": "but it is not connected to a panel yet"
+}
