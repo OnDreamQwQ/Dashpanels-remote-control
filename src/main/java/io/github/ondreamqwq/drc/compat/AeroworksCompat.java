@@ -79,6 +79,19 @@ public final class AeroworksCompat {
         return isLoaded() && Hooks.openMenu(player, consolePos, socket, subPath);
     }
 
+    /**
+     * Every block that makes up the console at {@code pos}: the console itself, its desk, and any
+     * neighbour belonging to the same row. Without this the desk stays behind and the console looks cut.
+     */
+    public static List<BlockPos> parts(Level level, BlockPos pos) {
+        return isLoaded() ? Hooks.parts(level, pos) : List.of();
+    }
+
+    /** Opens the console's own overview page - what right clicking the console in the world does. */
+    public static boolean openPage(Level level, BlockPos pos) {
+        return isLoaded() && Hooks.openPage(level, pos);
+    }
+
     public static List<BlockPos> consolesOf(PanelLinkTerminalBlockEntity terminal) {
         return terminal.consoles();
     }
@@ -206,6 +219,50 @@ public final class AeroworksCompat {
                 }
             }
             return out;
+        }
+
+        static List<BlockPos> parts(Level level, BlockPos pos) {
+            java.util.Set<BlockPos> found = new java.util.LinkedHashSet<>();
+            if (level.getBlockEntity(pos)
+                    instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console) {
+                for (com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity member
+                        : com.mred231.aeroworks.content.controls.console.ConsoleGroup.of(console)) {
+                    found.add(member.getBlockPos());
+                }
+            }
+            // The desk, the stand and the copycat variants are ordinary blocks around the console, and the
+            // console model alone does not include them.
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        BlockPos around = pos.offset(dx, dy, dz);
+                        if (!level.isLoaded(around)) {
+                            continue;
+                        }
+                        if (isPart(level.getBlockState(around).getBlock())) {
+                            found.add(around);
+                        }
+                    }
+                }
+            }
+            return java.util.List.copyOf(found);
+        }
+
+        private static boolean isPart(net.minecraft.world.level.block.Block block) {
+            return block instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlock
+                    || block instanceof com.mred231.aeroworks.content.controls.console.ConsoleDeskBlock
+                    || block instanceof com.mred231.aeroworks.content.controls.console.ControlStandBlock
+                    || block instanceof com.mred231.aeroworks.content.controls.console.CopycatConsoleDeskBlock
+                    || block instanceof com.mred231.aeroworks.content.controls.console.CopycatControlStandBlock;
+        }
+
+        static boolean openPage(Level level, BlockPos pos) {
+            if (!(level.getBlockEntity(pos)
+                    instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console)) {
+                return false;
+            }
+            com.mred231.aeroworks.content.controls.console.ConsoleScreenOpener.open(console);
+            return true;
         }
 
         static String describe(Level level, BlockPos pos) {

@@ -34,6 +34,11 @@ public final class CenterInfo {
             one.putInt("z", pos.getZ());
             one.putInt("panels", claimedAt(level, pos));
             one.putBoolean("selected", pos.equals(picked));
+            // Blank stays blank so the screen can show its own "unnamed" wording.
+            if (level.getBlockEntity(pos)
+                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {
+                one.putString("name", terminal.name());
+            }
             terminals.add(one);
         }
         info.put("terminals", terminals);

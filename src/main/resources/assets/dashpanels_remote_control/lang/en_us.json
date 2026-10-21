@@ -35,5 +35,8 @@
   "gui.dashpanels_remote_control.terminal.hint": "Terminal name",
   "gui.dashpanels_remote_control.terminal.save": "Save",
   "gui.dashpanels_remote_control.terminal.cancel": "Cancel",
-  "gui.dashpanels_remote_control.terminal.unnamed": "Unnamed panel"
+  "gui.dashpanels_remote_control.terminal.unnamed": "Unnamed panel",
+  "gui.dashpanels_remote_control.remote.page": "Page %s / %s · %s · %s",
+  "gui.dashpanels_remote_control.remote.list": "Panels",
+  "gui.dashpanels_remote_control.remote.list.back": "Back"
 }

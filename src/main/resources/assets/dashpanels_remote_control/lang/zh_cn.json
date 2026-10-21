@@ -35,5 +35,8 @@
   "gui.dashpanels_remote_control.terminal.hint": "终端名字",
   "gui.dashpanels_remote_control.terminal.save": "确定",
   "gui.dashpanels_remote_control.terminal.cancel": "取消",
-  "gui.dashpanels_remote_control.terminal.unnamed": "未命名面板"
+  "gui.dashpanels_remote_control.terminal.unnamed": "未命名面板",
+  "gui.dashpanels_remote_control.remote.page": "第 %s / %s 页 · %s · %s",
+  "gui.dashpanels_remote_control.remote.list": "面板列表",
+  "gui.dashpanels_remote_control.remote.list.back": "返回"
 }

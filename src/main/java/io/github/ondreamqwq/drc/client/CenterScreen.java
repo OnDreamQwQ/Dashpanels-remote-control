@@ -89,7 +89,11 @@ public class CenterScreen extends Screen {
             CompoundTag one = panels.getCompound(i);
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
             int claimed = one.getInt("panels");
-            String label = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
+            String name = one.getString("name").trim();
+            String label = name.isEmpty()
+                    ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
+                    : name;
+            label = label + "  (" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
             panelRows.add(new Row(label, claimed + " panel(s)", pos, -1, null, null));
             if (one.getBoolean("selected")) {
                 selected = i;
@@ -251,6 +255,22 @@ public class CenterScreen extends Screen {
         int x = left();
         int y = top();
         int visible = (ROW_BOTTOM - ROW_TOP) / ROW_HEIGHT;
+        if (page == 0 && button == 1) {
+            // Right clicking a terminal names it; the remote then lists terminals by that name.
+            for (int i = 0; i < visible; i++) {
+                int index = i + scroll;
+                if (index >= panelRows.size()) {
+                    break;
+                }
+                int ry = y + ROW_TOP + i * ROW_HEIGHT;
+                if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
+                    Row row = panelRows.get(index);
+                    TerminalRenameScreen.open(row.panel(), "");
+                    return;
+                }
+            }
+            return;
+        }
         for (int i = 0; i < visible; i++) {
             int index = i + scroll;
             if (index >= playerRows.size()) {
