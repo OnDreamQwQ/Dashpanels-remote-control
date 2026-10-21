@@ -1,7 +1,11 @@
 package io.github.ondreamqwq.drc.content;
 
 import io.github.ondreamqwq.drc.DrcRegistry;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import moth.boxxed.panels.api.network.ModulesNetwork;
 import moth.boxxed.panels.api.network.ModulesNetworkManager;
@@ -12,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -19,19 +24,24 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * A terminal that claims the panel it is attached to.
+ * A terminal that claims the panels it is wired to.
  *
- * <p>It is <b>not</b> a {@code ModulesNetworkMember}: it only reads the Dashpanels network through a
- * neighbouring member to work out which panel it is touching. Ledgering ourselves into that network
- * makes the game re-sync every panel around us whenever this block is broken.
+ * <p>It claims <b>the whole Dashpanels network</b> it touches, not one block: standing a terminal next
+ * to any panel of a row hands the remote the entire row, which is the useful unit for a cockpit. When
+ * it touches no Dashpanels member at all it falls back to whatever panel block it is physically
+ * against.
+ *
+ * <p>It is <b>not</b> a {@code ModulesNetworkMember}: it only reads that network through a
+ * neighbouring member. Ledgering ourselves into it makes the game re-sync every panel around us
+ * whenever this block is broken.
  */
 public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements NetworkMember {
 
-    /** NBT key for the claimed panel, inside the block-entity update tag. */
-    public static final String TAG_PANEL = "drc:panel";
+    /** NBT key for the claimed panels, inside the block-entity update tag. */
+    public static final String TAG_PANELS = "drc:panels";
 
     private UUID networkId = Networks.fresh();
-    private BlockPos panel = BlockPos.ZERO;
+    private List<BlockPos> panels = List.of();
     private int registryTimer;
 
     public PanelLinkTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -55,9 +65,14 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         }
     }
 
-    /** The panel this terminal claims, or {@code null} while it touches none. */
+    /** The panels this terminal claims, nearest first; empty while it touches none. */
+    public List<BlockPos> panels() {
+        return panels;
+    }
+
+    /** The nearest claimed panel, or {@code null} when there is none. */
     public BlockPos panelPos() {
-        return panel.equals(BlockPos.ZERO) ? null : panel;
+        return panels.isEmpty() ? null : panels.getFirst();
     }
 
     @Override
@@ -72,51 +87,54 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
             registry.ensure(networkId, server.dimension().location(), pos);
             registry.prune(server, networkId, server.dimension().location());
         }
-        BlockPos found = findPanel(level, pos);
-        if (!found.equals(panel)) {
-            panel = found;
+        List<BlockPos> found = claim(level, pos);
+        if (!found.equals(panels)) {
+            panels = found;
             setChanged();
             level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
         }
     }
 
-    /** The panel touching this terminal, falling back to the nearest panel on a neighbour's network. */
-    private static BlockPos findPanel(Level level, BlockPos self) {
+    /**
+     * Every panel of every Dashpanels network this terminal touches, nearest first, plus any panel
+     * block it is physically against. Reading the network instead of a single block is what makes one
+     * terminal serve a whole row.
+     */
+    private static List<BlockPos> claim(Level level, BlockPos self) {
+        Map<BlockPos, AbstractPanelBlockEntity> found = new LinkedHashMap<>();
+
         for (Direction side : Direction.values()) {
             if (level.getBlockEntity(self.relative(side)) instanceof AbstractPanelBlockEntity panel
                     && !panel.isRemoved()) {
-                return panel.getBlockPos();
+                found.put(panel.getBlockPos(), panel);
             }
         }
+
         for (Direction side : Direction.values()) {
-            if (level.getBlockEntity(self.relative(side)) instanceof ModulesNetworkMember member) {
-                ModulesNetwork network = ModulesNetworkManager.getNetwork(member);
-                if (network == null) {
-                    continue;
-                }
-                BlockPos nearest = null;
-                double best = Double.MAX_VALUE;
-                for (ModulesNetworkMember other : List.copyOf(network.members)) {
-                    if (other instanceof AbstractPanelBlockEntity panel && !panel.isRemoved()) {
-                        double distance = self.distSqr(panel.getBlockPos());
-                        if (distance < best) {
-                            best = distance;
-                            nearest = panel.getBlockPos();
-                        }
-                    }
-                }
-                if (nearest != null) {
-                    return nearest;
+            if (!(level.getBlockEntity(self.relative(side)) instanceof ModulesNetworkMember member)) {
+                continue;
+            }
+            ModulesNetwork network = ModulesNetworkManager.getNetwork(member);
+            if (network == null) {
+                continue;
+            }
+            // Copy first: a panel's own tick may add members to this very set.
+            for (ModulesNetworkMember other : List.copyOf(network.members)) {
+                if (other instanceof AbstractPanelBlockEntity panel && !panel.isRemoved()) {
+                    found.put(panel.getBlockPos(), panel);
                 }
             }
         }
-        return BlockPos.ZERO;
+
+        List<BlockPos> out = new ArrayList<>(found.keySet());
+        out.sort(Comparator.comparingDouble(self::distSqr));
+        return List.copyOf(out);
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
-        tag.putLong(TAG_PANEL, panel.asLong());
+        tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         return tag;
     }
 
@@ -127,13 +145,25 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         if (stored != null) {
             networkId = stored;
         }
-        panel = tag.contains(TAG_PANEL, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_PANEL)) : BlockPos.ZERO;
+        panels = readPanels(tag);
     }
 
     @Override
     public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         Networks.write(tag, networkId);
-        tag.putLong(TAG_PANEL, panel.asLong());
+        tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+    }
+
+    private static List<BlockPos> readPanels(CompoundTag tag) {
+        if (!tag.contains(TAG_PANELS, Tag.TAG_LONG_ARRAY)) {
+            return List.of();
+        }
+        long[] raw = tag.getLongArray(TAG_PANELS);
+        List<BlockPos> out = new ArrayList<>(raw.length);
+        for (long packed : raw) {
+            out.add(BlockPos.of(packed));
+        }
+        return List.copyOf(out);
     }
 }

@@ -196,10 +196,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
             if (!(level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity terminal)) {
                 continue;
             }
-            BlockPos panel = terminal.panelPos();
-            if (panel != null && level.getBlockEntity(panel) instanceof AbstractPanelBlockEntity live
-                    && !live.isRemoved()) {
-                found.add(panel);
+            // A terminal claims a whole Dashpanels network, so one terminal usually means a whole row.
+            for (BlockPos panel : terminal.panels()) {
+                if (level.getBlockEntity(panel) instanceof AbstractPanelBlockEntity live && !live.isRemoved()) {
+                    found.add(panel);
+                }
             }
         }
         List<BlockPos> out = new ArrayList<>(found);

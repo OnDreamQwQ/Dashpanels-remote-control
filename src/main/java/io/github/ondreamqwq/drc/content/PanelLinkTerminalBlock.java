@@ -148,9 +148,9 @@ public class PanelLinkTerminalBlock extends ModulesNetworkMemberBlock implements
         BlockPos panel = terminal.panelPos();
         if (panel == null) {
             text = report().append(tone("没有连上面板", ChatFormatting.YELLOW))
-                    .append(tone("（贴着一块面板放）", ChatFormatting.DARK_GRAY));
+                    .append(tone("（贴着一块面板或线缆放）", ChatFormatting.DARK_GRAY));
         } else {
-            text = report().append(tone("已认领面板 ", ChatFormatting.GRAY))
+            text = report().append(tone("认领了 " + terminal.panels().size() + " 块面板，最近的在 ", ChatFormatting.GRAY))
                     .append(where(panel.getX() + " " + panel.getY() + " " + panel.getZ()));
         }
         text = text.copy().append(tone(" · 网络 ", ChatFormatting.DARK_GRAY))
