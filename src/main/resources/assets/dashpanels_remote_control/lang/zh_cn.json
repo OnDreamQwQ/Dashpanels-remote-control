@@ -38,5 +38,9 @@
   "gui.dashpanels_remote_control.terminal.unnamed": "未命名面板",
   "gui.dashpanels_remote_control.remote.page": "第 %s / %s 页 · %s · %s",
   "gui.dashpanels_remote_control.remote.list": "面板列表",
-  "gui.dashpanels_remote_control.remote.list.back": "返回"
+  "gui.dashpanels_remote_control.remote.list.back": "返回",
+  "gui.dashpanels_remote_control.remote.count_panels": "%s 块面板",
+  "gui.dashpanels_remote_control.remote.count_consoles": "%s 台控制台",
+  "gui.dashpanels_remote_control.remote.row.panel": "面板 (%s)",
+  "gui.dashpanels_remote_control.remote.row.console": "控制台 (%s)"
 }

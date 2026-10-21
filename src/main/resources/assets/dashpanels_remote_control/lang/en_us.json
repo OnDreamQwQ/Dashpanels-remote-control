@@ -38,5 +38,9 @@
   "gui.dashpanels_remote_control.terminal.unnamed": "Unnamed panel",
   "gui.dashpanels_remote_control.remote.page": "Page %s / %s · %s · %s",
   "gui.dashpanels_remote_control.remote.list": "Panels",
-  "gui.dashpanels_remote_control.remote.list.back": "Back"
+  "gui.dashpanels_remote_control.remote.list.back": "Back",
+  "gui.dashpanels_remote_control.remote.count_panels": "%s panel(s)",
+  "gui.dashpanels_remote_control.remote.count_consoles": "%s console(s)",
+  "gui.dashpanels_remote_control.remote.row.panel": "Panel (%s)",
+  "gui.dashpanels_remote_control.remote.row.console": "Console (%s)"
 }

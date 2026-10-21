@@ -47,6 +47,7 @@ import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.NumericTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -135,11 +136,24 @@ public class PanelRemoteScreen extends Screen {
     private List<AbstractPanelBlockEntity> panels = List.of();
     /** Aeroworks consoles served by the same center; drawn as models, clicked by socket. */
     private List<BlockPos> consoles = List.of();
-    /** One page each: a single panel or a single console, grouped by the terminal that claimed it. */
+    /** One page per terminal: every panel and console that terminal feeds, drawn together. */
     private List<Page> pages = List.of();
     private int page;
 
-    record Page(String terminal, String label, BlockPos pos, boolean console) {
+    /**
+     * One page of the remote.
+     *
+     * <p>A page is a terminal, not a single block: the panels of one terminal belong to one physical
+     * assembly, so splitting them apart loses exactly what the player needs to see - how they relate.
+     * The list screen still offers every panel as its own row, and picking one centres the camera on it
+     * without tearing the assembly apart.
+     *
+     * @param terminal the terminal block, or {@code null} for panels no terminal claimed
+     * @param label    what the page calls itself: the terminal's name, or what the loose group is
+     * @param panels   panels on this page
+     * @param consoles Aeroworks consoles on this page
+     */
+    record Page(BlockPos terminal, String label, List<BlockPos> panels, List<BlockPos> consoles) {
     }
     private float zoom = 1.0F;
     /** Pixels per block. */
@@ -162,8 +176,8 @@ public class PanelRemoteScreen extends Screen {
     /** True when the hold was grabbed by the scroll wheel rather than by a held mouse button. */
     private boolean scrollMode;
 
-    /** Which panel the camera is centred on; -1 keeps the whole assembly in the middle. */
-    private int focus = -1;
+    /** Which panel the camera is centred on; null keeps the whole page in the middle. */
+    private BlockPos focusPos;
 
     private PanelRemoteScreen(BlockPos receiverPos) {
         super(Component.translatable("gui.dashpanels_remote_control.remote.title"));
@@ -219,56 +233,86 @@ public class PanelRemoteScreen extends Screen {
     private List<AbstractPanelBlockEntity> pagePanels() {
         Page current = currentPage();
         Level level = Minecraft.getInstance().level;
-        if (current == null || current.console() || level == null) {
+        if (current == null || level == null) {
             return List.of();
         }
-        return level.getBlockEntity(current.pos()) instanceof AbstractPanelBlockEntity panel
-                ? List.of(panel)
-                : List.of();
+        List<AbstractPanelBlockEntity> out = new ArrayList<>(current.panels().size());
+        for (BlockPos pos : current.panels()) {
+            if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
+                out.add(panel);
+            }
+        }
+        return out;
     }
 
     private List<BlockPos> pageConsoles() {
         Page current = currentPage();
-        return current == null || !current.console() ? List.of() : List.of(current.pos());
+        return current == null ? List.of() : current.consoles();
     }
 
-    /** One page per panel and per console, grouped by the terminal that claimed it. */
+    /** One page per terminal, in the order the center lists them; panels no terminal claimed get one. */
     private List<Page> buildPages(Level level, PanelRemoteCenterBlockEntity receiver) {
         List<Page> out = new ArrayList<>();
-        Set<BlockPos> seen = new HashSet<>();
+        Set<BlockPos> seenPanels = new HashSet<>();
+        Set<BlockPos> seenConsoles = new HashSet<>();
         for (BlockPos terminalPos : receiver.terminals()) {
             if (!(level.getBlockEntity(terminalPos)
                     instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal)) {
                 continue;
             }
             String name = terminal.name().trim();
-            String group = name.isEmpty()
-                    ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
-                    : name;
+            if (name.isEmpty()) {
+                name = Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString();
+            }
+            List<BlockPos> owned = new ArrayList<>();
             for (BlockPos pos : terminal.panels()) {
-                if (seen.add(pos)) {
-                    out.add(new Page(group, pos.toShortString(), pos, false));
+                if (seenPanels.add(pos)) {
+                    owned.add(pos);
                 }
             }
+            List<BlockPos> consolesOwned = new ArrayList<>();
             for (BlockPos pos : terminal.consoles()) {
-                if (seen.add(pos)) {
-                    out.add(new Page(group, pos.toShortString(), pos, true));
+                if (seenConsoles.add(pos)) {
+                    consolesOwned.add(pos);
                 }
             }
+            if (!owned.isEmpty() || !consolesOwned.isEmpty()) {
+                out.add(new Page(terminalPos, name, List.copyOf(owned), List.copyOf(consolesOwned)));
+            }
         }
+        List<BlockPos> loose = new ArrayList<>();
         for (BlockPos pos : receiver.panels()) {
-            if (seen.add(pos)) {
-                out.add(new Page("", pos.toShortString(), pos, false));
+            if (seenPanels.add(pos)) {
+                loose.add(pos);
             }
         }
+        if (!loose.isEmpty()) {
+            out.add(new Page(null,
+                    Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
+                    List.copyOf(loose), List.of()));
+        }
+        List<BlockPos> looseConsoles = new ArrayList<>();
         for (BlockPos pos : receiver.consoles()) {
-            if (seen.add(pos)) {
-                out.add(new Page("", pos.toShortString(), pos, true));
+            if (seenConsoles.add(pos)) {
+                looseConsoles.add(pos);
             }
+        }
+        if (!looseConsoles.isEmpty()) {
+            out.add(new Page(null,
+                    Component.translatable("gui.dashpanels_remote_control.center.consoles").getString(),
+                    List.of(), List.copyOf(looseConsoles)));
         }
         return List.copyOf(out);
     }
 
+
+    /**
+     * Frames the page: the whole terminal, or the one block the list highlighted.
+     *
+     * <p>A page is an assembly, so the camera derives itself from the bounding box of everything on
+     * the page - the panels keep their real relative positions instead of being blown up one at a
+     * time. Picking a single panel only moves the centre, it does not hide the rest.
+     */
     private void layout() {
         Page current = currentPage();
         if (current == null) {
@@ -278,14 +322,38 @@ public class PanelRemoteScreen extends Screen {
             centreZ = 0.5D;
             return;
         }
-        // One page at a time: the camera sits on the single panel or console this page is about, and
-        // its own block decides how big a block is on screen.
-        BlockPos pos = current.pos();
-        centreX = pos.getX() + 0.5D;
-        centreY = pos.getY() + 0.5D;
-        centreZ = pos.getZ() + 0.5D;
-        float base = (float) Math.min(width * 0.72D, height * 0.72D);
-        cell = Math.max(16, Math.round(base * zoom));
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        List<BlockPos> all = new ArrayList<>(current.panels());
+        all.addAll(current.consoles());
+        for (BlockPos pos : all) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        if (minX > maxX) {
+            // Nothing resolvable: keep a sane camera so the screen still behaves.
+            minX = minY = minZ = 0;
+            maxX = maxY = maxZ = 0;
+        }
+        if (focusPos != null) {
+            minX = maxX = focusPos.getX();
+            minY = maxY = focusPos.getY();
+            minZ = maxZ = focusPos.getZ();
+        }
+        centreX = (minX + maxX) / 2.0D + 0.5D;
+        centreY = (minY + maxY) / 2.0D + 0.5D;
+        centreZ = (minZ + maxZ) / 2.0D + 0.5D;
+        int span = Math.max(1, Math.max(maxX - minX, Math.max(maxY - minY, maxZ - minZ)) + 1);
+        float base = (float) Math.min(width * 0.82D, height * 0.72D);
+        cell = Math.max(16, Math.round(base / span * zoom));
     }
 
     private void playClick() {
@@ -293,21 +361,26 @@ public class PanelRemoteScreen extends Screen {
         minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
 
-    /** Moves the focus to the next (or previous) panel and re-frames the view on it. */
-    /** Moves to the next or previous page: one panel or one console at a time. */
+    /** Moves to the next or previous page: one terminal at a time. */
     private void turnPage(int step) {
         if (pages.isEmpty()) {
             return;
         }
-        setPage(Math.floorMod(page + step, pages.size()));
+        setPage(Math.floorMod(page + step, pages.size()), null);
     }
 
-    /** Jumps to one page, which is what the list screen does when a row is clicked. */
+    /** Jumps to one page, which is what the list screen does when a terminal row is clicked. */
     void setPage(int index) {
+        setPage(index, null);
+    }
+
+    /** Jumps to one page, optionally centring the camera on one block of it. */
+    void setPage(int index, BlockPos focus) {
         if (pages.isEmpty()) {
             return;
         }
         page = Math.floorMod(index, pages.size());
+        focusPos = focus;
         layout();
         playClick();
         panelTitle();
@@ -324,38 +397,35 @@ public class PanelRemoteScreen extends Screen {
         if (minecraft.player == null || current == null) {
             return;
         }
-        String where = current.terminal().isEmpty()
-                ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
-                : current.terminal();
         minecraft.player.displayClientMessage(
                 Component.translatable("gui.dashpanels_remote_control.remote.page",
-                        page + 1, pages.size(), where, current.label()), true);
+                        page + 1, pages.size(), current.label(), pageSummary(current)), true);
+    }
+
+    /** "3 panels · 1 console", so the title says how much the page holds. */
+    private Component pageSummary(Page current) {
+        MutableComponent out = Component.translatable(
+                "gui.dashpanels_remote_control.remote.count_panels", current.panels().size());
+        if (!current.consoles().isEmpty()) {
+            out.append(Component.literal(" · ")).append(Component.translatable(
+                    "gui.dashpanels_remote_control.remote.count_consoles", current.consoles().size()));
+        }
+        return out;
     }
 
     /** Tells the center which terminal feeds this page, so reopening lands on the same page. */
     private void rememberFocus() {
         Page current = currentPage();
         Minecraft minecraft = Minecraft.getInstance();
-        if (current == null || minecraft.level == null) {
+        if (current == null || current.terminal() == null || minecraft.level == null) {
             return;
         }
         if (!(minecraft.level.getBlockEntity(receiverPos) instanceof PanelRemoteCenterBlockEntity center)) {
             return;
         }
-        for (BlockPos candidate : center.terminals()) {
-            if (minecraft.level.getBlockEntity(candidate)
-                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {
-                boolean owns = current.console()
-                        ? terminal.consoles().contains(current.pos())
-                        : terminal.panels().contains(current.pos());
-                if (owns) {
-                    if (!candidate.equals(center.defaultTerminal())) {
-                        PacketDistributor.sendToServer(
-                                new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, candidate));
-                    }
-                    return;
-                }
-            }
+        if (!current.terminal().equals(center.defaultTerminal())) {
+            PacketDistributor.sendToServer(
+                    new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, current.terminal()));
         }
     }
 
@@ -482,7 +552,7 @@ public class PanelRemoteScreen extends Screen {
             pose.pushPose();
             assemblyPose(pose);
 
-            // One page: either one panel (boards, modules, boards again) or one whole console.
+            // One page: every panel the terminal feeds, plus its consoles, in their real positions.
             List<AbstractPanelBlockEntity> shown = pagePanels();
             if (!shown.isEmpty()) {
                 // Boards first, so every surface is in the depth buffer before a single module is drawn.
@@ -497,12 +567,11 @@ public class PanelRemoteScreen extends Screen {
                 for (AbstractPanelBlockEntity panel : shown) {
                     drawBoard(pose, panel, buffers);
                 }
-            } else {
-                // A console is several blocks (console, desk, stand) and they all have to be drawn.
-                Set<BlockPos> drawnConsoles = new HashSet<>();
-                for (BlockPos console : pageConsoles()) {
-                    drawConsole(pose, console, buffers, partialTick, drawnConsoles);
-                }
+            }
+            // A console is several blocks (console, desk, stand) and they all have to be drawn.
+            Set<BlockPos> drawnConsoles = new HashSet<>();
+            for (BlockPos console : pageConsoles()) {
+                drawConsole(pose, console, buffers, partialTick, drawnConsoles);
             }
             pose.popPose();
         } finally {
