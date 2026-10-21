@@ -2,6 +2,7 @@ package io.github.ondreamqwq.drc;
 
 import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlock;
 import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelLinkTerminalItem;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlock;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
 import io.github.ondreamqwq.drc.content.PanelRemoteItem;
@@ -50,9 +51,9 @@ public final class DrcRegistry {
                     .strength(2.0F, 6.0F)
                     .noOcclusion()));
 
-    public static final DeferredItem<BlockItem> PANEL_LINK_TERMINAL_ITEM = ITEMS.register(
+    public static final DeferredItem<PanelLinkTerminalItem> PANEL_LINK_TERMINAL_ITEM = ITEMS.register(
             "panel_link_terminal",
-            () -> new BlockItem(PANEL_LINK_TERMINAL.get(), new Item.Properties()));
+            () -> new PanelLinkTerminalItem(PANEL_LINK_TERMINAL.get(), new Item.Properties()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PanelLinkTerminalBlockEntity>>
             PANEL_LINK_TERMINAL_BE = BLOCK_ENTITIES.register("panel_link_terminal", () ->
