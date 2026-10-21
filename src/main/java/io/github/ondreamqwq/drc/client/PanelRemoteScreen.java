@@ -7,7 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.math.Axis;
 import io.github.ondreamqwq.drc.DrcConfig;
-import io.github.ondreamqwq.drc.content.PanelRemoteReceiverBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
 import io.github.ondreamqwq.drc.net.TerminalClickPacket;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -169,7 +169,7 @@ public class PanelRemoteScreen extends Screen {
         Level level = Minecraft.getInstance().level;
         BlockEntity blockEntity = level == null ? null : level.getBlockEntity(receiverPos);
         List<AbstractPanelBlockEntity> found = new ArrayList<>();
-        if (blockEntity instanceof PanelRemoteReceiverBlockEntity receiver) {
+        if (blockEntity instanceof PanelRemoteCenterBlockEntity receiver) {
             for (BlockPos pos : receiver.panels()) {
                 if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
                     found.add(panel);

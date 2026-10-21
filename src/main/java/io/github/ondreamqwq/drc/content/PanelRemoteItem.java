@@ -17,7 +17,7 @@ import net.minecraft.world.level.Level;
  * The handheld end of the panel remote.
  *
  * <ul>
- *   <li>sneak + right click a {@link PanelRemoteReceiverBlock} - bind this remote to that receiver</li>
+ *   <li>sneak + right click a {@link PanelRemoteCenterBlock} - bind this remote to that receiver</li>
  *   <li>sneak + right click the air - forget the binding</li>
  *   <li>plain right click - open the projection of the panel behind the bound receiver</li>
  * </ul>
@@ -61,7 +61,7 @@ public class PanelRemoteItem extends Item {
             tell(player, "remote.wrong_dimension", ChatFormatting.RED);
             return InteractionResultHolder.success(stack);
         }
-        if (!(level.getBlockEntity(bound.pos()) instanceof PanelRemoteReceiverBlockEntity receiver)) {
+        if (!(level.getBlockEntity(bound.pos()) instanceof PanelRemoteCenterBlockEntity receiver)) {
             tell(player, "remote.too_far", ChatFormatting.RED);
             return InteractionResultHolder.success(stack);
         }
@@ -80,7 +80,7 @@ public class PanelRemoteItem extends Item {
             return InteractionResult.PASS;
         }
         Level level = context.getLevel();
-        if (!(level.getBlockEntity(context.getClickedPos()) instanceof PanelRemoteReceiverBlockEntity receiver)) {
+        if (!(level.getBlockEntity(context.getClickedPos()) instanceof PanelRemoteCenterBlockEntity receiver)) {
             return InteractionResult.PASS;
         }
         if (level.isClientSide) {

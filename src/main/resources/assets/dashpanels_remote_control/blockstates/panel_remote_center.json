@@ -1,6 +1,6 @@
 {
   "multipart": [
-    { "apply": { "model": "dashpanels_remote_control:block/panel_remote_receiver" } },
+    { "apply": { "model": "dashpanels_remote_control:block/panel_remote_center" } },
     { "apply": { "model": "dashpanels_remote_control:block/cable_facing" }, "when": { "north": "true" } },
     { "apply": { "model": "dashpanels_remote_control:block/cable_facing", "y": 90 }, "when": { "east": "true" } },
     { "apply": { "model": "dashpanels_remote_control:block/cable_facing", "y": 180 }, "when": { "south": "true" } },

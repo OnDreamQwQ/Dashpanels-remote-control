@@ -1,8 +1,8 @@
 package io.github.ondreamqwq.drc;
 
 import io.github.ondreamqwq.drc.content.PanelRemoteItem;
-import io.github.ondreamqwq.drc.content.PanelRemoteReceiverBlock;
-import io.github.ondreamqwq.drc.content.PanelRemoteReceiverBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlock;
+import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -26,20 +26,20 @@ public final class DrcRegistry {
     public static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, DrcMod.MOD_ID);
 
-    public static final DeferredBlock<PanelRemoteReceiverBlock> PANEL_REMOTE_RECEIVER = BLOCKS.register(
-            "panel_remote_receiver",
-            () -> new PanelRemoteReceiverBlock(BlockBehaviour.Properties.of()
+    public static final DeferredBlock<PanelRemoteCenterBlock> PANEL_REMOTE_RECEIVER = BLOCKS.register(
+            "panel_remote_center",
+            () -> new PanelRemoteCenterBlock(BlockBehaviour.Properties.of()
                     .strength(2.0F, 6.0F)
                     .noOcclusion()));
 
     public static final DeferredItem<BlockItem> PANEL_REMOTE_RECEIVER_ITEM = ITEMS.register(
-            "panel_remote_receiver",
+            "panel_remote_center",
             () -> new BlockItem(PANEL_REMOTE_RECEIVER.get(), new Item.Properties()));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PanelRemoteReceiverBlockEntity>>
-            PANEL_REMOTE_RECEIVER_BE = BLOCK_ENTITIES.register("panel_remote_receiver", () ->
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PanelRemoteCenterBlockEntity>>
+            PANEL_REMOTE_RECEIVER_BE = BLOCK_ENTITIES.register("panel_remote_center", () ->
                     BlockEntityType.Builder
-                            .of(PanelRemoteReceiverBlockEntity::new, PANEL_REMOTE_RECEIVER.get())
+                            .of(PanelRemoteCenterBlockEntity::new, PANEL_REMOTE_RECEIVER.get())
                             .build(null));
 
     public static final DeferredItem<PanelRemoteItem> PANEL_REMOTE = ITEMS.register(

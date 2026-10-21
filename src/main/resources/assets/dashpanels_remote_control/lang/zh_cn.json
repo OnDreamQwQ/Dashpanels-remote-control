@@ -1,6 +1,6 @@
 {
   "itemGroup.dashpanels_remote_control": "面板遥控",
-  "block.dashpanels_remote_control.panel_remote_receiver": "面板遥控接收器",
+  "block.dashpanels_remote_control.panel_remote_center": "面板遥控中心",
   "item.dashpanels_remote_control.panel_remote": "面板遥控器",
   "gui.dashpanels_remote_control.remote.title": "面板遥控器",
   "gui.dashpanels_remote_control.remote.hint": "右键操作模块 · 滚轮调数值 · 左键拖动旋转 · Ctrl+滚轮缩放",

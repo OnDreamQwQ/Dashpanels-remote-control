@@ -1,7 +1,7 @@
 package io.github.ondreamqwq.drc.net;
 
 import io.github.ondreamqwq.drc.DrcMod;
-import io.github.ondreamqwq.drc.content.PanelRemoteReceiverBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
 import moth.boxxed.panels.api.module.Module;
 import moth.boxxed.panels.api.panel.AbstractPanelBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -54,7 +54,7 @@ public record TerminalClickPacket(BlockPos receiver, BlockPos panel, String modu
                 return;
             }
             BlockEntity receiverEntity = level.getBlockEntity(packet.receiver());
-            if (!(receiverEntity instanceof PanelRemoteReceiverBlockEntity receiver)) {
+            if (!(receiverEntity instanceof PanelRemoteCenterBlockEntity receiver)) {
                 return;
             }
             if (!receiver.covers(packet.panel())) {

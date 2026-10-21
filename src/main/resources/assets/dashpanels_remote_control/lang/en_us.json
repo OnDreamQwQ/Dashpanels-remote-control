@@ -1,6 +1,6 @@
 {
   "itemGroup.dashpanels_remote_control": "Panel Remote",
-  "block.dashpanels_remote_control.panel_remote_receiver": "Panel Remote Receiver",
+  "block.dashpanels_remote_control.panel_remote_center": "Panel Remote Center",
   "item.dashpanels_remote_control.panel_remote": "Panel Remote",
   "gui.dashpanels_remote_control.remote.title": "Panel Remote",
   "gui.dashpanels_remote_control.remote.hint": "Right click a module · wheel to adjust · drag to turn · Ctrl + wheel to zoom",

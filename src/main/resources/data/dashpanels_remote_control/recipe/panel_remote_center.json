@@ -12,7 +12,7 @@
     "I": { "item": "minecraft:iron_ingot" }
   },
   "result": {
-    "id": "dashpanels_remote_control:panel_remote_receiver",
+    "id": "dashpanels_remote_control:panel_remote_center",
     "count": 1
   }
 }

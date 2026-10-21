@@ -34,7 +34,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * <p>Same four connector properties as the panel link center block it replaced - they only exist so the model
  * can grow a stub toward each neighbouring cable, and so the block joins the same connectivity graph.
  */
-public class PanelRemoteReceiverBlock extends ModulesNetworkMemberBlock {
+public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock {
 
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty EAST = BlockStateProperties.EAST;
@@ -47,7 +47,7 @@ public class PanelRemoteReceiverBlock extends ModulesNetworkMemberBlock {
 
     private static final VoxelShape SHAPE = Block.box(1.0D, 0.0D, 1.0D, 15.0D, 16.0D, 15.0D);
 
-    public PanelRemoteReceiverBlock(BlockBehaviour.Properties properties) {
+    public PanelRemoteCenterBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any()
                 .setValue(NORTH, Boolean.FALSE)
@@ -57,8 +57,8 @@ public class PanelRemoteReceiverBlock extends ModulesNetworkMemberBlock {
     }
 
     @Override
-    protected MapCodec<? extends PanelRemoteReceiverBlock> codec() {
-        return simpleCodec(PanelRemoteReceiverBlock::new);
+    protected MapCodec<? extends PanelRemoteCenterBlock> codec() {
+        return simpleCodec(PanelRemoteCenterBlock::new);
     }
 
     @Override
@@ -68,7 +68,7 @@ public class PanelRemoteReceiverBlock extends ModulesNetworkMemberBlock {
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new PanelRemoteReceiverBlockEntity(pos, state);
+        return new PanelRemoteCenterBlockEntity(pos, state);
     }
 
     @Override
@@ -120,7 +120,7 @@ public class PanelRemoteReceiverBlock extends ModulesNetworkMemberBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (level.isClientSide || !(level.getBlockEntity(pos) instanceof PanelRemoteReceiverBlockEntity receiver)) {
+        if (level.isClientSide || !(level.getBlockEntity(pos) instanceof PanelRemoteCenterBlockEntity receiver)) {
             return InteractionResult.SUCCESS;
         }
         BlockPos panel = receiver.panelPos();

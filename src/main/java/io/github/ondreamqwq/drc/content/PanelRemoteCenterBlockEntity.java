@@ -36,7 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * tag, because the remote screen renders the real panel block entities and therefore needs them on the
  * client as well.
  */
-public class PanelRemoteReceiverBlockEntity extends BaseBlockEntity {
+public class PanelRemoteCenterBlockEntity extends BaseBlockEntity {
 
     /** NBT key for the served panels inside the block-entity update tag. */
     public static final String TAG_PANELS = "drc:panels";
@@ -44,7 +44,7 @@ public class PanelRemoteReceiverBlockEntity extends BaseBlockEntity {
     /** Every panel on this receiver's network, nearest first. Empty while it is not on one. */
     private List<BlockPos> panels = List.of();
 
-    public PanelRemoteReceiverBlockEntity(BlockPos pos, BlockState state) {
+    public PanelRemoteCenterBlockEntity(BlockPos pos, BlockState state) {
         super(DrcRegistry.PANEL_REMOTE_RECEIVER_BE.get(), pos, state);
     }
 
