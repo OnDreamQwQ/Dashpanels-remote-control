@@ -40,6 +40,29 @@ public final class AeroworksCompat {
     public record Node(BlockPos console, int socket, String subPath, String label, ItemStack icon) {
     }
 
+    /** One socket of a console, with the box its module occupies inside the console block. */
+    public record SocketBox(int socket, net.minecraft.world.phys.AABB box) {
+    }
+
+    /**
+     * Draws a console's mounted modules, the way Aeroworks draws them on a real console.
+     *
+     * <p>The model of the console block itself is not drawn here - the caller draws that - and this adds
+     * only the modules on top of it, in the console's own space, so the remote can show the console as a
+     * model instead of a list. Aeroworks normally hands this to Flywheel; when the remote asks, the
+     * instanced path is unavailable, so the plain vertex path is reproduced.
+     */
+    public static boolean render(Level level, BlockPos pos, com.mojang.blaze3d.vertex.PoseStack pose,
+                                 net.minecraft.client.renderer.MultiBufferSource buffers, float partialTick,
+                                 int light, int overlay) {
+        return isLoaded() && Hooks.render(level, pos, pose, buffers, partialTick, light, overlay);
+    }
+
+    /** The hit boxes of a console's sockets, in the console's own block space; empty without Aeroworks. */
+    public static List<SocketBox> socketBoxes(Level level, BlockPos pos, float partialTick) {
+        return isLoaded() ? Hooks.socketBoxes(level, pos, partialTick) : List.of();
+    }
+
     public static List<BlockPos> findConsoles(Level level, BlockPos terminal, List<BlockPos> panels) {
         return isLoaded() ? Hooks.findConsoles(level, terminal, panels) : List.of();
     }
@@ -120,6 +143,69 @@ public final class AeroworksCompat {
                     collect(pos, socket, subPath.isEmpty() ? id : subPath + "/" + id, head, out);
                 }
             });
+        }
+
+        static boolean render(Level level, BlockPos pos, com.mojang.blaze3d.vertex.PoseStack pose,
+                              net.minecraft.client.renderer.MultiBufferSource buffers, float partialTick,
+                              int light, int overlay) {
+            if (!(level.getBlockEntity(pos)
+                    instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console)) {
+                return false;
+            }
+            java.util.List<com.mred231.aeroworks.content.controls.socket.Socket> sockets = console.sockets();
+            org.joml.Quaternionf rotation =
+                    com.mred231.aeroworks.content.controls.console.ConsoleBlock.rotationFor(console.getBlockState());
+            boolean mirrored =
+                    com.mred231.aeroworks.content.controls.console.ConsoleBlock.isCeiling(console.getBlockState());
+            com.mojang.blaze3d.vertex.VertexConsumer vertices =
+                    buffers.getBuffer(net.minecraft.client.renderer.RenderType.cutout());
+
+            for (int socketIndex = 0; socketIndex < sockets.size(); socketIndex++) {
+                final int i = socketIndex;
+                com.mred231.aeroworks.content.controls.module.MountedModule module = console.module(i);
+                if (module == null) {
+                    continue;
+                }
+                com.mred231.aeroworks.content.controls.socket.Socket socket = sockets.get(i);
+                net.minecraft.world.phys.Vec3 offset = socket.offset();
+                java.util.List<com.mred231.aeroworks.content.controls.module.ModulePartRender.RenderPart> parts =
+                        com.mred231.aeroworks.content.controls.module.ModulePartRender.flatten(module, socket.type());
+                for (com.mred231.aeroworks.content.controls.module.ModulePartRender.RenderPart part : parts) {
+                    dev.engine_room.flywheel.lib.model.baked.PartialModel partial =
+                            com.mred231.aeroworks.content.controls.module.ModulePartials.get(part.model());
+                    if (partial == null) {
+                        continue;
+                    }
+                    net.createmod.catnip.render.SuperByteBuffer partBuffer =
+                            net.createmod.catnip.render.CachedBuffers.partial(partial, console.getBlockState())
+                                    .translate(0.5F, 0.5F, 0.5F)
+                                    .rotate(rotation)
+                                    .translate(offset.x - 0.5D, offset.y - 0.5D, offset.z - 0.5D)
+                                    .rotate(socket.orientation())
+                                    .translate(-0.5F, 0.0F, -0.5F);
+                    com.mred231.aeroworks.content.controls.module.ModulePartRender.apply(partBuffer, part,
+                            com.mred231.aeroworks.content.controls.module.ModulePartRender.displayValues(
+                                    module, id -> console.channelValueAt(i, id, partialTick)),
+                            socket.orientation(), mirrored);
+                    partBuffer.light(light).renderInto(pose, vertices);
+                }
+            }
+            return true;
+        }
+
+        static List<SocketBox> socketBoxes(Level level, BlockPos pos, float partialTick) {
+            if (!(level.getBlockEntity(pos)
+                    instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console)) {
+                return List.of();
+            }
+            List<SocketBox> out = new java.util.ArrayList<>();
+            for (int socket = 0; socket < console.socketCount(); socket++) {
+                net.minecraft.world.phys.AABB box = console.moduleBounds(socket, partialTick);
+                if (box != null) {
+                    out.add(new SocketBox(socket, box));
+                }
+            }
+            return out;
         }
 
         static String describe(Level level, BlockPos pos) {

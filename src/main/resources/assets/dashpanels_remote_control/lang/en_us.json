@@ -30,5 +30,10 @@
   "gui.dashpanels_remote_control.center.not_owner": "Only the owner can change this",
   "gui.dashpanels_remote_control.center.unknown_player": "No such player: %s",
   "gui.dashpanels_remote_control.remote.focus": "Panel %s / %s  %s",
-  "gui.dashpanels_remote_control.center.consoles": "Consoles"
+  "gui.dashpanels_remote_control.center.consoles": "Consoles",
+  "gui.dashpanels_remote_control.terminal.title": "Rename terminal",
+  "gui.dashpanels_remote_control.terminal.hint": "Terminal name",
+  "gui.dashpanels_remote_control.terminal.save": "Save",
+  "gui.dashpanels_remote_control.terminal.cancel": "Cancel",
+  "gui.dashpanels_remote_control.terminal.unnamed": "Unnamed panel"
 }

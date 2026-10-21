@@ -19,6 +19,10 @@ public final class DrcNet {
                 CenterSelectPacket::handle);
         registrar.playToServer(CenterAccessPacket.TYPE, CenterAccessPacket.STREAM_CODEC,
                 CenterAccessPacket::handle);
+        registrar.playToClient(TerminalOpenPacket.TYPE, TerminalOpenPacket.STREAM_CODEC,
+                TerminalOpenPacket::handle);
+        registrar.playToServer(RenameTerminalPacket.TYPE, RenameTerminalPacket.STREAM_CODEC,
+                RenameTerminalPacket::handle);
         registrar.playToServer(ConsoleOpenPacket.TYPE, ConsoleOpenPacket.STREAM_CODEC,
                 ConsoleOpenPacket::handle);
     }

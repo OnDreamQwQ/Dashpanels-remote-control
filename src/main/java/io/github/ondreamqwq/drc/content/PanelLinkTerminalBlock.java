@@ -144,6 +144,14 @@ public class PanelLinkTerminalBlock extends ModulesNetworkMemberBlock implements
         if (level.isClientSide || !(level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity terminal)) {
             return InteractionResult.SUCCESS;
         }
+        if (!player.isShiftKeyDown()) {
+            // Plain right click names the terminal; the shift report below stays for the plain facts.
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer,
+                        new io.github.ondreamqwq.drc.net.TerminalOpenPacket(pos, terminal.name()));
+            }
+            return InteractionResult.SUCCESS;
+        }
         Component text;
         BlockPos panel = terminal.panelPos();
         if (panel == null) {

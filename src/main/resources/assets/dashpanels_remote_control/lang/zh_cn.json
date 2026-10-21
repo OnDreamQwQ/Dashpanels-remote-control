@@ -30,5 +30,10 @@
   "gui.dashpanels_remote_control.center.not_owner": "只有所有者能改权限",
   "gui.dashpanels_remote_control.center.unknown_player": "找不到玩家 %s",
   "gui.dashpanels_remote_control.remote.focus": "面板 %s / %s  %s",
-  "gui.dashpanels_remote_control.center.consoles": "控制台"
+  "gui.dashpanels_remote_control.center.consoles": "控制台",
+  "gui.dashpanels_remote_control.terminal.title": "重命名终端",
+  "gui.dashpanels_remote_control.terminal.hint": "终端名字",
+  "gui.dashpanels_remote_control.terminal.save": "确定",
+  "gui.dashpanels_remote_control.terminal.cancel": "取消",
+  "gui.dashpanels_remote_control.terminal.unnamed": "未命名面板"
 }

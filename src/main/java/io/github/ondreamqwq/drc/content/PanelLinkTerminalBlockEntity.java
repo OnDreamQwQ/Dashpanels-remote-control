@@ -43,9 +43,13 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     /** NBT key for the Aeroworks consoles standing next to this terminal or its panels. */
     public static final String TAG_CONSOLES = "drc:consoles";
 
+    /** NBT key for the name the player gave this terminal; empty means "not named yet". */
+    public static final String TAG_NAME = "drc:name";
+
     private UUID networkId = Networks.fresh();
     private List<BlockPos> panels = List.of();
     private List<BlockPos> consoles = List.of();
+    private String name = "";
     private int registryTimer;
 
     public PanelLinkTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -77,6 +81,27 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     /** The Aeroworks consoles this terminal can reach, if that mod is installed; empty otherwise. */
     public List<BlockPos> consoles() {
         return consoles;
+    }
+
+    /** The name the player gave this terminal; empty when it has none yet. */
+    public String name() {
+        return name;
+    }
+
+    /** Names this terminal. The remote lists terminals by this, so blank means "unnamed". */
+    public void setName(String value) {
+        String next = value == null ? "" : value.trim();
+        if (next.length() > 32) {
+            next = next.substring(0, 32);
+        }
+        if (next.equals(name)) {
+            return;
+        }
+        name = next;
+        setChanged();
+        if (level != null) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
     }
 
     /** The nearest claimed panel, or {@code null} when there is none. */
@@ -147,6 +172,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.putString(TAG_NAME, name);
         return tag;
     }
 
@@ -159,6 +185,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         }
         panels = readPanels(tag, TAG_PANELS);
         consoles = readPanels(tag, TAG_CONSOLES);
+        name = tag.getString(TAG_NAME);
     }
 
     @Override
@@ -167,6 +194,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         Networks.write(tag, networkId);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.putString(TAG_NAME, name);
     }
 
     private static List<BlockPos> readPanels(CompoundTag tag, String key) {

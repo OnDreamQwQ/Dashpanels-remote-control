@@ -34,6 +34,7 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.neoforged.neoforge.client.model.data.ModelData;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -130,6 +131,8 @@ public class PanelRemoteScreen extends Screen {
     private final float[] view = {0.0F, 45.0F};
 
     private List<AbstractPanelBlockEntity> panels = List.of();
+    /** Aeroworks consoles served by the same center; drawn as models, clicked by socket. */
+    private List<BlockPos> consoles = List.of();
     private float zoom = 1.0F;
     /** Pixels per block. */
     private int cell = 64;
@@ -184,6 +187,7 @@ public class PanelRemoteScreen extends Screen {
                     found.add(panel);
                 }
             }
+            consoles = receiver.consoles();
         }
         if (!preferred.isEmpty()) {
             // The terminal picked on the center's screen leads, so the view starts where the player left it.
@@ -200,7 +204,7 @@ public class PanelRemoteScreen extends Screen {
      * Pixels per block and the centre of the assembly, both derived from where the panels actually are.
      */
     private void layout() {
-        if (panels.isEmpty()) {
+        if (panels.isEmpty() && consoles.isEmpty()) {
             cell = 64;
             centreX = 0.5D;
             centreY = 0.5D;
@@ -223,10 +227,22 @@ public class PanelRemoteScreen extends Screen {
             maxY = Math.max(maxY, pos.getY());
             maxZ = Math.max(maxZ, pos.getZ());
         }
+        for (BlockPos pos : consoles) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
 
         // The whole assembly stays in frame (so you can see where things are), but the camera centres on
         // whichever panel has focus, so + / - and the wheel bring that panel into view.
-        if (focus >= 0 && focus < panels.size()) {
+        if (panels.isEmpty()) {
+            centreX = (minX + maxX) / 2.0D + 0.5D;
+            centreY = (minY + maxY) / 2.0D + 0.5D;
+            centreZ = (minZ + maxZ) / 2.0D + 0.5D;
+        } else if (focus >= 0 && focus < panels.size()) {
             BlockPos pos = panels.get(focus).getBlockPos();
             centreX = pos.getX() + 0.5D;
             centreY = pos.getY() + 0.5D;
@@ -249,7 +265,7 @@ public class PanelRemoteScreen extends Screen {
 
     /** Moves the focus to the next (or previous) panel and re-frames the view on it. */
     private void focusPanel(int step) {
-        if (panels.isEmpty()) {
+        if (panels.isEmpty() && consoles.isEmpty()) {
             return;
         }
         if (focus < 0) {
@@ -320,7 +336,7 @@ public class PanelRemoteScreen extends Screen {
         }
         graphics.fill(0, 0, width, height, BACKDROP);
 
-        if (panels.isEmpty()) {
+        if (panels.isEmpty() && consoles.isEmpty()) {
             graphics.drawCenteredString(font,
                     Component.translatable("gui.dashpanels_remote_control.remote.unavailable"),
                     width / 2, height / 2 - 4, 0xFFCC5555);
@@ -349,7 +365,7 @@ public class PanelRemoteScreen extends Screen {
      * way would spin the other way or show its edge.
      */
     private void assemblyPose(PoseStack pose) {
-        AbstractPanelBlockEntity reference = panels.get(0);
+        AbstractPanelBlockEntity reference = panels.isEmpty() ? null : panels.get(0);
         if (DrcConfig.perspective()) {
             // The base of the GUI pose already sits far back (the game pushes the whole 2D layer down the
             // z axis), and a picking pose starts at zero. Subtracting the base keeps the assembly at the
@@ -444,6 +460,11 @@ public class PanelRemoteScreen extends Screen {
                 drawBoard(pose, panel, buffers);
             }
 
+            // Aeroworks consoles share the frame, so they can be worked from here as models too.
+            for (BlockPos console : consoles) {
+                drawConsole(pose, console, buffers, partialTick);
+            }
+
             pose.popPose();
         } finally {
             // Submit now, while the panels are still the thing being drawn.
@@ -503,8 +524,106 @@ public class PanelRemoteScreen extends Screen {
         pose.popPose();
     }
 
-    private MultiBufferSource.BufferSource ownBuffers() {
-        if (ownPool == null) {
+    /** Draws one Aeroworks console: its own block model, then the modules Aeroworks mounts on it. */
+    private void drawConsole(PoseStack pose, BlockPos pos, MultiBufferSource buffers, float partialTick) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Level level = minecraft.level;
+        if (level == null) {
+            return;
+        }
+        pose.pushPose();
+        panelOffset(pose, pos);
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(true);
+        minecraft.getBlockRenderer().renderSingleBlock(level.getBlockState(pos), pose, buffers,
+                LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+        io.github.ondreamqwq.drc.compat.AeroworksCompat.render(level, pos, pose, buffers, partialTick,
+                LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
+        pose.popPose();
+    }
+
+    /** A console socket measured against the current view, so hovering highlights the right one. */
+    private record SocketRect(int socket, int[] rect) {
+    }
+
+    private record ConsoleHit(BlockPos pos, int socket, int[] rect) {
+    }
+
+    /**
+     * Screen rectangles of one console's sockets.
+     *
+     * <p>Aeroworks hands out a box per socket in the console's own block space, and that is exactly the
+     * space the console is drawn in here, so the same pose projects them and the click test cannot
+     * disagree with the picture.
+     */
+    private List<SocketRect> consoleRects(BlockPos pos) {
+        List<SocketRect> out = new ArrayList<>();
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return out;
+        }
+        List<io.github.ondreamqwq.drc.compat.AeroworksCompat.SocketBox> boxes =
+                io.github.ondreamqwq.drc.compat.AeroworksCompat.socketBoxes(level, pos, 1.0F);
+        if (boxes.isEmpty()) {
+            return out;
+        }
+
+        PoseStack pose = new PoseStack();
+        pose.pushPose();
+        assemblyPose(pose);
+        panelOffset(pose, pos);
+        Matrix4f matrix = new Matrix4f(pose.last().pose());
+        Matrix4f projection = perspectiveProjection();
+        for (io.github.ondreamqwq.drc.compat.AeroworksCompat.SocketBox box : boxes) {
+            AABB bounds = box.box();
+            float minX = Float.MAX_VALUE;
+            float minY = Float.MAX_VALUE;
+            float maxX = -Float.MAX_VALUE;
+            float maxY = -Float.MAX_VALUE;
+            for (int corner = 0; corner < 8; corner++) {
+                Vector4f point = new Vector4f(
+                        (float) ((corner & 1) == 0 ? bounds.minX : bounds.maxX),
+                        (float) ((corner & 2) == 0 ? bounds.minY : bounds.maxY),
+                        (float) ((corner & 4) == 0 ? bounds.minZ : bounds.maxZ),
+                        1.0F);
+                point.mul(matrix);
+                if (projection != null) {
+                    point.mul(projection);
+                    if (point.w != 0.0F) {
+                        point.div(point.w);
+                    }
+                    point.x = (point.x * 0.5F + 0.5F) * width;
+                    point.y = (0.5F - point.y * 0.5F) * height;
+                }
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+            out.add(new SocketRect(box.socket(), new int[]{
+                    Math.round(minX), Math.round(minY),
+                    Math.round(maxX - minX), Math.round(maxY - minY)}));
+        }
+        pose.popPose();
+        return out;
+    }
+
+    /** The console socket under the cursor, if any. */
+    private ConsoleHit consoleHit(double mouseX, double mouseY) {
+        if (consoles.isEmpty()) {
+            return null;
+        }
+        for (BlockPos pos : consoles) {
+            for (SocketRect rect : consoleRects(pos)) {
+                if (inside(rect.rect(), mouseX, mouseY)) {
+                    return new ConsoleHit(pos, rect.socket(), rect.rect());
+                }
+            }
+        }
+        return null;
+    }
+
+    private MultiBufferSource.BufferSource ownBuffers() {        if (ownPool == null) {
             ownPool = new ByteBufferBuilder(1 << 20);
         } else {
             ownPool.clear();
@@ -647,6 +766,16 @@ public class PanelRemoteScreen extends Screen {
             graphics.pose().popPose();
             if (DrcConfig.infoBox()) {
                 drawInfoBox(graphics, module);
+            }
+        } else {
+            // A console module is not a panel module, but it is still clickable, so it gets the same frame.
+            ConsoleHit console = consoleHit(mouseX, mouseY);
+            if (console != null) {
+                int[] rect = console.rect();
+                graphics.pose().pushPose();
+                graphics.pose().translate(0.0F, 0.0F, 400.0F);
+                graphics.renderOutline(rect[0], rect[1], rect[2], rect[3], HIGHLIGHT);
+                graphics.pose().popPose();
             }
         }
         Component hint = holding != null
@@ -1028,6 +1157,15 @@ public class PanelRemoteScreen extends Screen {
             if (hit != null) {
                 activate(hit);
                 holdButton = button;
+                return true;
+            }
+            // No panel module there - a console socket is the other thing that can be clicked. It opens
+            // that module's own Aeroworks menu, from here, which is what working the console means.
+            ConsoleHit console = consoleHit(mouseX, mouseY);
+            if (console != null) {
+                PacketDistributor.sendToServer(new io.github.ondreamqwq.drc.net.ConsoleOpenPacket(
+                        receiverPos, console.pos(), console.socket(), ""));
+                playClick();
             }
             return true;
         }
