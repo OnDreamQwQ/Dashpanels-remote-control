@@ -4,7 +4,7 @@
   "block.dashpanels_remote_control.panel_link_terminal": "Panel Link Terminal",
   "item.dashpanels_remote_control.panel_remote": "Panel Remote",
   "gui.dashpanels_remote_control.remote.title": "Panel Remote",
-  "gui.dashpanels_remote_control.remote.hint": "Right click a module · wheel to adjust · drag to turn · Ctrl + wheel to zoom",
+  "gui.dashpanels_remote_control.remote.hint": "Right click a module · wheel to adjust · drag to turn · Ctrl+wheel zoom · Shift+wheel panels · +/- panels",
   "gui.dashpanels_remote_control.remote.state": "holding · drag to adjust",
   "gui.dashpanels_remote_control.remote.pointer": "pointer hidden",
   "gui.dashpanels_remote_control.remote.clicked": "Used %s",
@@ -23,5 +23,11 @@
   "gui.dashpanels_remote_control.center.remotes": "Remotes",
   "gui.dashpanels_remote_control.center.players": "Players",
   "gui.dashpanels_remote_control.center.empty": "Nothing here yet",
-  "gui.dashpanels_remote_control.center.readonly": "You may edit, but not operate the modules"
+  "gui.dashpanels_remote_control.center.readonly": "You may edit, but not operate the modules",
+  "gui.dashpanels_remote_control.center.name_hint": "player name",
+  "gui.dashpanels_remote_control.center.add_operate": "+ operate",
+  "gui.dashpanels_remote_control.center.add_edit": "+ edit",
+  "gui.dashpanels_remote_control.center.not_owner": "Only the owner can change this",
+  "gui.dashpanels_remote_control.center.unknown_player": "No such player: %s",
+  "gui.dashpanels_remote_control.remote.focus": "Panel %s / %s  %s"
 }

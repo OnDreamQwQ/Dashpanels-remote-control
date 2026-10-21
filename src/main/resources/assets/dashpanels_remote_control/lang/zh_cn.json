@@ -4,7 +4,7 @@
   "block.dashpanels_remote_control.panel_link_terminal": "面板链接终端",
   "item.dashpanels_remote_control.panel_remote": "面板遥控器",
   "gui.dashpanels_remote_control.remote.title": "面板遥控器",
-  "gui.dashpanels_remote_control.remote.hint": "右键操作模块 · 滚轮调数值 · 左键拖动旋转 · Ctrl+滚轮缩放",
+  "gui.dashpanels_remote_control.remote.hint": "右键操作模块 · 滚轮调数值 · 左键拖动旋转 · Ctrl+滚轮缩放 · Shift+滚轮切面板 · +/− 切面板",
   "gui.dashpanels_remote_control.remote.state": "调节中 · 拖动鼠标",
   "gui.dashpanels_remote_control.remote.pointer": "指针隐藏",
   "gui.dashpanels_remote_control.remote.clicked": "已操作：%s",
@@ -23,5 +23,11 @@
   "gui.dashpanels_remote_control.center.remotes": "遥控器",
   "gui.dashpanels_remote_control.center.players": "玩家",
   "gui.dashpanels_remote_control.center.empty": "这里还没有东西",
-  "gui.dashpanels_remote_control.center.readonly": "你只有修改权限，不能操作模块"
+  "gui.dashpanels_remote_control.center.readonly": "你只有修改权限，不能操作模块",
+  "gui.dashpanels_remote_control.center.name_hint": "玩家名",
+  "gui.dashpanels_remote_control.center.add_operate": "+ 可操作",
+  "gui.dashpanels_remote_control.center.add_edit": "+ 仅修改",
+  "gui.dashpanels_remote_control.center.not_owner": "只有所有者能改权限",
+  "gui.dashpanels_remote_control.center.unknown_player": "找不到玩家 %s",
+  "gui.dashpanels_remote_control.remote.focus": "面板 %s / %s  %s"
 }

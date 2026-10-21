@@ -151,6 +151,9 @@ public class PanelRemoteScreen extends Screen {
     /** True when the hold was grabbed by the scroll wheel rather than by a held mouse button. */
     private boolean scrollMode;
 
+    /** Which panel the camera is centred on; -1 keeps the whole assembly in the middle. */
+    private int focus = -1;
+
     private PanelRemoteScreen(BlockPos receiverPos) {
         super(Component.translatable("gui.dashpanels_remote_control.remote.title"));
         this.receiverPos = receiverPos;
@@ -221,13 +224,85 @@ public class PanelRemoteScreen extends Screen {
             maxZ = Math.max(maxZ, pos.getZ());
         }
 
-        centreX = (minX + maxX) / 2.0D + 0.5D;
-        centreY = (minY + maxY) / 2.0D + 0.5D;
-        centreZ = (minZ + maxZ) / 2.0D + 0.5D;
+        // The whole assembly stays in frame (so you can see where things are), but the camera centres on
+        // whichever panel has focus, so + / - and the wheel bring that panel into view.
+        if (focus >= 0 && focus < panels.size()) {
+            BlockPos pos = panels.get(focus).getBlockPos();
+            centreX = pos.getX() + 0.5D;
+            centreY = pos.getY() + 0.5D;
+            centreZ = pos.getZ() + 0.5D;
+        } else {
+            centreX = (minX + maxX) / 2.0D + 0.5D;
+            centreY = (minY + maxY) / 2.0D + 0.5D;
+            centreZ = (minZ + maxZ) / 2.0D + 0.5D;
+        }
 
         double span = Math.max(maxX - minX, Math.max(maxY - minY, maxZ - minZ)) + 1.0D;
         float base = (float) Math.min(width * 0.9D, height * 0.86D) / (float) span;
         cell = Math.max(16, Math.round(base * zoom));
+    }
+
+    private void playClick() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+    }
+
+    /** Moves the focus to the next (or previous) panel and re-frames the view on it. */
+    private void focusPanel(int step) {
+        if (panels.isEmpty()) {
+            return;
+        }
+        if (focus < 0) {
+            focus = step >= 0 ? 0 : panels.size() - 1;
+        } else {
+            focus = Math.floorMod(focus + step, panels.size());
+        }
+        layout();
+        playClick();
+        panelTitle();
+    }
+
+    private String focusedPanelName() {
+        if (focus < 0 || focus >= panels.size()) {
+            return "";
+        }
+        BlockPos pos = panels.get(focus).getBlockPos();
+        return "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
+    }
+
+    private void panelTitle() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            return;
+        }
+        minecraft.player.displayClientMessage(
+                Component.translatable("gui.dashpanels_remote_control.remote.focus",
+                        focus + 1, panels.size(), focusedPanelName()), true);
+    }
+
+    /** Tells the center which terminal feeds the focused panel, so the next open starts here. */
+    private void rememberFocus() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (focus < 0 || focus >= panels.size() || minecraft.level == null) {
+            return;
+        }
+        BlockPos panelPos = panels.get(focus).getBlockPos();
+        if (!(minecraft.level.getBlockEntity(receiverPos) instanceof PanelRemoteCenterBlockEntity center)) {
+            return;
+        }
+        BlockPos terminal = null;
+        for (BlockPos candidate : center.terminals()) {
+            if (minecraft.level.getBlockEntity(candidate)
+                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminalEntity
+                    && terminalEntity.panels().contains(panelPos)) {
+                terminal = candidate;
+                break;
+            }
+        }
+        if (terminal != null && !terminal.equals(center.defaultTerminal())) {
+            PacketDistributor.sendToServer(
+                    new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, terminal));
+        }
     }
 
     @Override
@@ -1035,6 +1110,25 @@ public class PanelRemoteScreen extends Screen {
                 return true;
             }
         }
+        // + / - walk the panels of the assembly, so a multi-panel setup is reachable without turning it.
+        switch (keyCode) {
+            case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> {
+                focusPanel(1);
+                return true;
+            }
+            case GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_KP_SUBTRACT -> {
+                focusPanel(-1);
+                return true;
+            }
+            case GLFW.GLFW_KEY_0, GLFW.GLFW_KEY_KP_0 -> {
+                focus = -1;
+                layout();
+                playClick();
+                return true;
+            }
+            default -> {
+            }
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -1051,6 +1145,7 @@ public class PanelRemoteScreen extends Screen {
 
     @Override
     public void onClose() {
+        rememberFocus();
         endHold();
         super.onClose();
     }
@@ -1252,10 +1347,15 @@ public class PanelRemoteScreen extends Screen {
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
 
-        // Ctrl+wheel zooms; a bare wheel over a module adjusts it, the same way it does on the panel.
+        // Ctrl+wheel zooms; Shift+wheel walks the panels; a bare wheel over a module adjusts it, the same
+        // way it does on the panel.
         if (hasControlDown()) {
             zoom = Mth.clamp(zoom + (float) scrollY * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM);
             layout();
+            return true;
+        }
+        if (hasShiftDown()) {
+            focusPanel(scrollY > 0.0D ? 1 : -1);
             return true;
         }
 

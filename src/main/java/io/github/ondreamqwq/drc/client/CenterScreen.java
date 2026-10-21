@@ -54,9 +54,14 @@ public class CenterScreen extends Screen {
     private int scroll;
     private int selected = -1;
     private boolean canOperate;
+    private boolean isOwner;
+    private net.minecraft.client.gui.components.EditBox nameBox;
+    private int editBoxTop;
 
-    private record Row(String text, String hint, BlockPos panel) {
+    private record Row(String text, String hint, BlockPos panel, int level) {
     }
+
+    private String ownerName = "";
 
     public CenterScreen(BlockPos center, CompoundTag info) {
         super(Component.translatable("gui.dashpanels_remote_control.center.title"));
@@ -73,6 +78,7 @@ public class CenterScreen extends Screen {
         remoteRows.clear();
         playerRows.clear();
         canOperate = info.getBoolean("canOperate");
+        isOwner = info.getBoolean("isOwner");
         selected = -1;
 
         ListTag panels = info.getList("terminals", Tag.TAG_COMPOUND);
@@ -81,7 +87,7 @@ public class CenterScreen extends Screen {
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
             int claimed = one.getInt("panels");
             String label = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            panelRows.add(new Row(label, claimed + " panel(s)", pos));
+            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1));
             if (one.getBoolean("selected")) {
                 selected = i;
             }
@@ -90,15 +96,17 @@ public class CenterScreen extends Screen {
         ListTag remotes = info.getList("remotes", Tag.TAG_COMPOUND);
         for (int i = 0; i < remotes.size(); i++) {
             CompoundTag one = remotes.getCompound(i);
-            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null));
+            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1));
         }
 
+        ownerName = info.getString("owner");
         ListTag access = info.getList("access", Tag.TAG_COMPOUND);
         for (int i = 0; i < access.size(); i++) {
             CompoundTag one = access.getCompound(i);
-            playerRows.add(new Row(one.getString("name"), one.getString("level"), null));
+            playerRows.add(new Row(one.getString("name"), one.getString("level"), null,
+                    one.getInt("level_id")));
         }
-        playerRows.addFirst(new Row(info.getString("owner"), "owner", null));
+        playerRows.addFirst(new Row(ownerName, "owner", null, -1));
     }
 
     private List<Row> rows() {
@@ -166,6 +174,91 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, Component.translatable("gui.dashpanels_remote_control.center.readonly"),
                     x + 8, y + HEIGHT - 12, TEXT_DIM, false);
         }
+
+        if (page == 2) {
+            drawPlayerEditor(graphics, x, y, mouseX, mouseY);
+        }
+    }
+
+    // ------------------------------------------------------------------ players page
+
+    private int editorTop() {
+        return top() + HEIGHT - 20;
+    }
+
+    private void drawPlayerEditor(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
+        if (!isOwner) {
+            graphics.drawString(font, Component.translatable("gui.dashpanels_remote_control.center.not_owner"),
+                    x + 8, y + HEIGHT - 12, TEXT_DIM, false);
+            return;
+        }
+        int row = editorTop();
+        if (nameBox == null) {
+            nameBox = new net.minecraft.client.gui.components.EditBox(font, x + 6, row, 96, 12,
+                    Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
+            nameBox.setMaxLength(32);
+            nameBox.setValue("");
+        }
+        nameBox.setPosition(x + 6, row);
+        nameBox.render(graphics, mouseX, mouseY, 0.0F);
+
+        button(graphics, x + 108, row, 60, 12,
+                Component.translatable("gui.dashpanels_remote_control.center.add_operate"), mouseX, mouseY);
+        button(graphics, x + 172, row, 60, 12,
+                Component.translatable("gui.dashpanels_remote_control.center.add_edit"), mouseX, mouseY);
+    }
+
+    private void button(GuiGraphics graphics, int bx, int by, int bw, int bh, Component label,
+                        int mouseX, int mouseY) {
+        boolean hover = mouseX >= bx && mouseX <= bx + bw && mouseY >= by && mouseY <= by + bh;
+        graphics.fill(bx, by, bx + bw, by + bh, hover ? TAB_ACTIVE : TAB_IDLE);
+        graphics.renderOutline(bx, by, bw, bh, EDGE);
+        graphics.drawString(font, label, bx + (bw - font.width(label)) / 2, by + 2, TEXT, false);
+    }
+
+    private void sendAccess(byte action, String name, int level) {
+        PacketDistributor.sendToServer(
+                new io.github.ondreamqwq.drc.net.CenterAccessPacket(center, action, name, (byte) level));
+        click();
+    }
+
+    private void addHovered(int level) {
+        if (nameBox == null) {
+            return;
+        }
+        String name = nameBox.getValue().trim();
+        if (name.isEmpty()) {
+            return;
+        }
+        sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.ADD, name, level);
+        nameBox.setValue("");
+    }
+
+    private void clickRows(double mouseX, double mouseY, int button) {
+        int x = left();
+        int y = top();
+        int visible = (ROW_BOTTOM - ROW_TOP) / ROW_HEIGHT;
+        for (int i = 0; i < visible; i++) {
+            int index = i + scroll;
+            if (index >= playerRows.size()) {
+                break;
+            }
+            int ry = y + ROW_TOP + i * ROW_HEIGHT;
+            if (mouseX < x + 4 || mouseX > x + WIDTH - 4 || mouseY < ry || mouseY >= ry + ROW_HEIGHT - 1) {
+                continue;
+            }
+            Row row = playerRows.get(index);
+            if (index == 0 || !isOwner) {
+                return;
+            }
+            if (button == 1) {
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.REMOVE, row.text(), 0);
+            } else {
+                int wanted = row.level() == 0 ? 1 : 0;
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.SET_LEVEL, row.text(), wanted);
+            }
+            return;
+        }
     }
 
     @Override
@@ -204,7 +297,49 @@ public class CenterScreen extends Screen {
                 }
             }
         }
+        if (page == 2) {
+            int row = editorTop();
+            if (isOwner) {
+                if (nameBox != null && nameBox.isMouseOver(mouseX, mouseY)) {
+                    nameBox.setFocused(true);
+                    return nameBox.mouseClicked(mouseX, mouseY, button);
+                }
+                if (mouseX >= x + 108 && mouseX <= x + 168 && mouseY >= row && mouseY <= row + 12) {
+                    addHovered(io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity.ACCESS_OPERATE);
+                    return true;
+                }
+                if (mouseX >= x + 172 && mouseX <= x + 232 && mouseY >= row && mouseY <= row + 12) {
+                    addHovered(io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity.ACCESS_EDIT);
+                    return true;
+                }
+            }
+            clickRows(mouseX, mouseY, button);
+            return true;
+        }
+
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (nameBox != null && nameBox.isFocused() && nameBox.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (nameBox != null && nameBox.isFocused()) {
+            if (nameBox.keyPressed(keyCode, scanCode, modifiers)) {
+                return true;
+            }
+            if (keyCode == 257 || keyCode == 335) {   // enter / keypad enter
+                addHovered(io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity.ACCESS_OPERATE);
+                return true;
+            }
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

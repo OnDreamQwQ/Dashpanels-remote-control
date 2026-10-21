@@ -23,6 +23,7 @@ public final class CenterInfo {
         info.putString("network", io.github.ondreamqwq.drc.content.Networks.shortId(center.networkId()));
         info.putBoolean("canEdit", center.canEdit(player.getUUID()));
         info.putBoolean("canOperate", center.canOperate(player.getUUID()));
+        info.putBoolean("isOwner", center.owner() != null && center.owner().equals(player.getUUID()));
 
         BlockPos picked = center.defaultTerminal();
         ListTag terminals = new ListTag();
@@ -55,6 +56,7 @@ public final class CenterInfo {
             one.putString("name", nameOf(level, uuid));
             one.putString("level", levelOfAccess == PanelRemoteCenterBlockEntity.ACCESS_OPERATE
                     ? "can operate" : "can edit");
+            one.putInt("level_id", levelOfAccess);
             access.add(one);
         });
         info.put("access", access);
