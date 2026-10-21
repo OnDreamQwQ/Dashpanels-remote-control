@@ -169,19 +169,24 @@ public class PanelRemoteScreen extends Screen {
         Level level = Minecraft.getInstance().level;
         BlockEntity blockEntity = level == null ? null : level.getBlockEntity(receiverPos);
         List<AbstractPanelBlockEntity> found = new ArrayList<>();
-        BlockPos preferred = null;
+        List<BlockPos> preferred = List.of();
         if (blockEntity instanceof PanelRemoteCenterBlockEntity receiver) {
-            preferred = receiver.defaultPanel();
+            BlockPos terminalPos = receiver.defaultTerminal();
+            if (terminalPos != null && level.getBlockEntity(terminalPos)
+                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {
+                preferred = terminal.panels();
+            }
             for (BlockPos pos : receiver.panels()) {
                 if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
                     found.add(panel);
                 }
             }
         }
-        if (preferred != null) {
-            // The panel picked on the center's screen leads, so the view starts where the player left it.
-            BlockPos wanted = preferred;
-            found.sort((a, b) -> Boolean.compare(b.getBlockPos().equals(wanted), a.getBlockPos().equals(wanted)));
+        if (!preferred.isEmpty()) {
+            // The terminal picked on the center's screen leads, so the view starts where the player left it.
+            List<BlockPos> leading = preferred;
+            found.sort((a, b) -> Boolean.compare(
+                    leading.contains(b.getBlockPos()), leading.contains(a.getBlockPos())));
         }
         panels = List.copyOf(found);
         view[1] = DrcConfig.cameraTilt();

@@ -43,6 +43,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     /** NBT key for the served panels inside the block-entity update tag. */
     public static final String TAG_PANELS = "drc:panels";
 
+    private static final String TAG_TERMINALS = "drc:terminals";
     private static final String TAG_DEFAULT = "drc:default";
     private static final String TAG_OWNER = "drc:owner";
     private static final String TAG_ACCESS = "drc:access";
@@ -66,8 +67,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     /** Every panel served by this center, nearest first. */
     private List<BlockPos> panels = List.of();
 
-    /** The panel the remote opens on; only ever one of {@link #panels()}. */
-    private BlockPos defaultPanel;
+    /** The terminal the player picked on the center's screen; only ever one of {@link #terminals()}. */
+    private BlockPos defaultTerminal;
+
+    /** Every terminal in this network, nearest first. */
+    private List<BlockPos> terminals = List.of();
 
     private int registryTimer;
 
@@ -165,16 +169,26 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return panels.isEmpty() ? null : panels.getFirst();
     }
 
-    /** The panel the remote should open on, or {@code null} when the player never picked one. */
-    public BlockPos defaultPanel() {
-        return defaultPanel;
+    /** The terminals feeding this center, nearest first. */
+    public List<BlockPos> terminals() {
+        return terminals;
     }
 
-    public void setDefaultPanel(BlockPos panel) {
-        if (panel == null || panel.equals(defaultPanel)) {
+    /** Whether {@code pos} is one of the terminals in this network. */
+    public boolean coversTerminal(BlockPos pos) {
+        return terminals.contains(pos);
+    }
+
+    /** The terminal the remote should follow, or {@code null} when the player never picked one. */
+    public BlockPos defaultTerminal() {
+        return defaultTerminal;
+    }
+
+    public void setDefaultTerminal(BlockPos terminal) {
+        if (terminal == null || terminal.equals(defaultTerminal)) {
             return;
         }
-        defaultPanel = panel;
+        defaultTerminal = terminal;
         setChanged();
         if (level != null) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
@@ -198,9 +212,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
             registry.ensure(networkId, server.dimension().location(), pos);
             registry.prune(server, networkId, server.dimension().location());
         }
-        List<BlockPos> found = servedPanels(server, pos);
-        if (!found.equals(panels)) {
+        List<BlockPos> feeding = terminals(server, pos);
+        List<BlockPos> found = servedPanels(server);
+        if (!found.equals(panels) || !feeding.equals(terminals)) {
             panels = found;
+            terminals = feeding;
             setChanged();
             level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
         }
@@ -210,7 +226,19 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
      * Every panel claimed by a terminal in this network, nearest first. Sorted by distance rather than
      * by registry order so the list does not reshuffle when a terminal is added.
      */
-    private List<BlockPos> servedPanels(ServerLevel level, BlockPos self) {
+    /** Every terminal of this network in this dimension, nearest to {@code self} first. */
+    private List<BlockPos> terminals(ServerLevel level, BlockPos self) {
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos pos : NetworkRegistry.get(level).members(networkId, level.dimension().location())) {
+            if (level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity) {
+                out.add(pos);
+            }
+        }
+        out.sort(Comparator.comparingDouble(self::distSqr));
+        return List.copyOf(out);
+    }
+
+    private List<BlockPos> servedPanels(ServerLevel level) {
         Set<BlockPos> found = new LinkedHashSet<>();
         for (BlockPos pos : NetworkRegistry.get(level).members(networkId, level.dimension().location())) {
             if (!(level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity terminal)) {
@@ -224,7 +252,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
             }
         }
         List<BlockPos> out = new ArrayList<>(found);
-        out.sort(Comparator.comparingDouble(self::distSqr));
+        out.sort(Comparator.comparingDouble(worldPosition::distSqr));
         return List.copyOf(out);
     }
 
@@ -234,8 +262,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
-        if (defaultPanel != null) {
-            tag.putLong(TAG_DEFAULT, defaultPanel.asLong());
+        tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
+        if (defaultTerminal != null) {
+            tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
         }
         return tag;
     }
@@ -250,8 +279,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         owner = tag.contains(TAG_OWNER, Tag.TAG_STRING) ? parseUuid(tag.getString(TAG_OWNER)) : null;
         readAccess(tag);
         readRemotes(tag);
-        panels = readPanels(tag);
-        defaultPanel = tag.contains(TAG_DEFAULT, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_DEFAULT)) : null;
+        panels = readPanels(tag, TAG_PANELS);
+        terminals = readPanels(tag, TAG_TERMINALS);
+        defaultTerminal = tag.contains(TAG_DEFAULT, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_DEFAULT)) : null;
     }
 
     @Override
@@ -264,8 +294,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         tag.put(TAG_ACCESS, writeAccess());
         tag.put(TAG_REMOTES, writeRemotes());
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
-        if (defaultPanel != null) {
-            tag.putLong(TAG_DEFAULT, defaultPanel.asLong());
+        tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
+        if (defaultTerminal != null) {
+            tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
         }
     }
 
@@ -316,11 +347,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         }
     }
 
-    private static List<BlockPos> readPanels(CompoundTag tag) {
-        if (!tag.contains(TAG_PANELS, Tag.TAG_LONG_ARRAY)) {
+    private static List<BlockPos> readPanels(CompoundTag tag, String key) {
+        if (!tag.contains(key, Tag.TAG_LONG_ARRAY)) {
             return List.of();
         }
-        long[] raw = tag.getLongArray(TAG_PANELS);
+        long[] raw = tag.getLongArray(key);
         List<BlockPos> out = new ArrayList<>(raw.length);
         for (long packed : raw) {
             out.add(BlockPos.of(packed));

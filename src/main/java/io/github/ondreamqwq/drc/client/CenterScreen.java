@@ -75,13 +75,13 @@ public class CenterScreen extends Screen {
         canOperate = info.getBoolean("canOperate");
         selected = -1;
 
-        ListTag panels = info.getList("panels", Tag.TAG_COMPOUND);
+        ListTag panels = info.getList("terminals", Tag.TAG_COMPOUND);
         for (int i = 0; i < panels.size(); i++) {
             CompoundTag one = panels.getCompound(i);
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
-            int modules = one.getInt("modules");
+            int claimed = one.getInt("panels");
             String label = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            panelRows.add(new Row(label, modules + " module(s)", pos));
+            panelRows.add(new Row(label, claimed + " panel(s)", pos));
             if (one.getBoolean("selected")) {
                 selected = i;
             }

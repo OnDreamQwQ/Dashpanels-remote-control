@@ -1,9 +1,9 @@
 package io.github.ondreamqwq.drc.net;
 
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
-import moth.boxxed.panels.api.panel.AbstractPanelBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,18 +24,18 @@ public final class CenterInfo {
         info.putBoolean("canEdit", center.canEdit(player.getUUID()));
         info.putBoolean("canOperate", center.canOperate(player.getUUID()));
 
-        BlockPos picked = center.defaultPanel();
-        ListTag panels = new ListTag();
-        for (BlockPos pos : center.panels()) {
+        BlockPos picked = center.defaultTerminal();
+        ListTag terminals = new ListTag();
+        for (BlockPos pos : center.terminals()) {
             CompoundTag one = new CompoundTag();
             one.putInt("x", pos.getX());
             one.putInt("y", pos.getY());
             one.putInt("z", pos.getZ());
-            one.putInt("modules", modulesAt(level, pos));
+            one.putInt("panels", claimedAt(level, pos));
             one.putBoolean("selected", pos.equals(picked));
-            panels.add(one);
+            terminals.add(one);
         }
-        info.put("panels", panels);
+        info.put("terminals", terminals);
 
         ListTag remotes = new ListTag();
         for (PanelRemoteCenterBlockEntity.Remote remote : center.remotes()) {
@@ -62,9 +62,9 @@ public final class CenterInfo {
         PacketDistributor.sendToPlayer(player, new CenterInfoPacket(center.getBlockPos(), info));
     }
 
-    private static int modulesAt(ServerLevel level, BlockPos pos) {
-        if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
-            return panel.getModules() == null ? 0 : panel.getModules().size();
+    private static int claimedAt(ServerLevel level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity terminal) {
+            return terminal.panels().size();
         }
         return -1;
     }
