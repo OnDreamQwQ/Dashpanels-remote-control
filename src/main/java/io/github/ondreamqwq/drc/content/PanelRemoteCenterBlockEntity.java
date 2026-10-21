@@ -44,6 +44,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     public static final String TAG_PANELS = "drc:panels";
 
     private static final String TAG_TERMINALS = "drc:terminals";
+    private static final String TAG_CONSOLES = "drc:consoles";
     private static final String TAG_DEFAULT = "drc:default";
     private static final String TAG_OWNER = "drc:owner";
     private static final String TAG_ACCESS = "drc:access";
@@ -72,6 +73,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
 
     /** Every terminal in this network, nearest first. */
     private List<BlockPos> terminals = List.of();
+
+    /** Aeroworks consoles reachable from those terminals, if that mod is installed. */
+    private List<BlockPos> consoles = List.of();
 
     private int registryTimer;
 
@@ -174,6 +178,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return terminals;
     }
 
+    /** Aeroworks consoles reachable through this center, if that mod is installed. */
+    public List<BlockPos> consoles() {
+        return consoles;
+    }
+
     /** Whether {@code pos} is one of the terminals in this network. */
     public boolean coversTerminal(BlockPos pos) {
         return terminals.contains(pos);
@@ -214,9 +223,11 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         }
         List<BlockPos> feeding = terminals(server, pos);
         List<BlockPos> found = servedPanels(server);
-        if (!found.equals(panels) || !feeding.equals(terminals)) {
+        List<BlockPos> consolesFound = servedConsoles(server, feeding);
+        if (!found.equals(panels) || !feeding.equals(terminals) || !consolesFound.equals(consoles)) {
             panels = found;
             terminals = feeding;
+            consoles = consolesFound;
             setChanged();
             level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
         }
@@ -235,6 +246,17 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
             }
         }
         out.sort(Comparator.comparingDouble(self::distSqr));
+        return List.copyOf(out);
+    }
+
+    /** The consoles the terminals of this network can reach, deduplicated. */
+    private static List<BlockPos> servedConsoles(ServerLevel level, List<BlockPos> terminals) {
+        java.util.Set<BlockPos> out = new java.util.LinkedHashSet<>();
+        for (BlockPos terminalPos : terminals) {
+            if (level.getBlockEntity(terminalPos) instanceof PanelLinkTerminalBlockEntity terminal) {
+                out.addAll(terminal.consoles());
+            }
+        }
         return List.copyOf(out);
     }
 
@@ -263,6 +285,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
         if (defaultTerminal != null) {
             tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
         }
@@ -281,6 +304,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         readRemotes(tag);
         panels = readPanels(tag, TAG_PANELS);
         terminals = readPanels(tag, TAG_TERMINALS);
+        consoles = readPanels(tag, TAG_CONSOLES);
         defaultTerminal = tag.contains(TAG_DEFAULT, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_DEFAULT)) : null;
     }
 
@@ -295,6 +319,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         tag.put(TAG_REMOTES, writeRemotes());
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
         if (defaultTerminal != null) {
             tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
         }

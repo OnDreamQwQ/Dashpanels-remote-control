@@ -44,11 +44,13 @@ public class CenterScreen extends Screen {
     private final List<String> tabs = List.of(
             Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
             Component.translatable("gui.dashpanels_remote_control.center.remotes").getString(),
-            Component.translatable("gui.dashpanels_remote_control.center.players").getString());
+            Component.translatable("gui.dashpanels_remote_control.center.players").getString(),
+            Component.translatable("gui.dashpanels_remote_control.center.consoles").getString());
 
     private final List<Row> panelRows = new ArrayList<>();
     private final List<Row> remoteRows = new ArrayList<>();
     private final List<Row> playerRows = new ArrayList<>();
+    private final List<Row> consoleRows = new ArrayList<>();
 
     private int page;
     private int scroll;
@@ -58,7 +60,7 @@ public class CenterScreen extends Screen {
     private net.minecraft.client.gui.components.EditBox nameBox;
     private int editBoxTop;
 
-    private record Row(String text, String hint, BlockPos panel, int level) {
+    private record Row(String text, String hint, BlockPos panel, int level, String subPath) {
     }
 
     private String ownerName = "";
@@ -77,6 +79,7 @@ public class CenterScreen extends Screen {
         panelRows.clear();
         remoteRows.clear();
         playerRows.clear();
+        consoleRows.clear();
         canOperate = info.getBoolean("canOperate");
         isOwner = info.getBoolean("isOwner");
         selected = -1;
@@ -87,7 +90,7 @@ public class CenterScreen extends Screen {
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
             int claimed = one.getInt("panels");
             String label = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1));
+            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1, null));
             if (one.getBoolean("selected")) {
                 selected = i;
             }
@@ -96,7 +99,7 @@ public class CenterScreen extends Screen {
         ListTag remotes = info.getList("remotes", Tag.TAG_COMPOUND);
         for (int i = 0; i < remotes.size(); i++) {
             CompoundTag one = remotes.getCompound(i);
-            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1));
+            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1, null));
         }
 
         ownerName = info.getString("owner");
@@ -104,15 +107,25 @@ public class CenterScreen extends Screen {
         for (int i = 0; i < access.size(); i++) {
             CompoundTag one = access.getCompound(i);
             playerRows.add(new Row(one.getString("name"), one.getString("level"), null,
-                    one.getInt("level_id")));
+                    one.getInt("level_id"), null));
         }
-        playerRows.addFirst(new Row(ownerName, "owner", null, -1));
+        playerRows.addFirst(new Row(ownerName, "owner", null, -1, null));
+
+        ListTag consoles = info.getList("consoles", Tag.TAG_COMPOUND);
+        for (int i = 0; i < consoles.size(); i++) {
+            CompoundTag one = consoles.getCompound(i);
+            BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
+            String label = one.getString("label");
+            String where = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
+            consoleRows.add(new Row(label, where, pos, one.getInt("socket"), one.getString("sub_path")));
+        }
     }
 
     private List<Row> rows() {
         return switch (page) {
             case 1 -> remoteRows;
             case 2 -> playerRows;
+            case 3 -> consoleRows;
             default -> panelRows;
         };
     }
@@ -292,6 +305,25 @@ public class CenterScreen extends Screen {
                         selected = index;
                         PacketDistributor.sendToServer(
                                 new io.github.ondreamqwq.drc.net.CenterSelectPacket(center, panel));
+                    }
+                    return true;
+                }
+            }
+        }
+        if (page == 3) {
+            int visible = (ROW_BOTTOM - ROW_TOP) / ROW_HEIGHT;
+            for (int i = 0; i < visible; i++) {
+                int index = i + scroll;
+                if (index >= consoleRows.size()) {
+                    break;
+                }
+                int ry = y + ROW_TOP + i * ROW_HEIGHT;
+                if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
+                    click();
+                    Row row = consoleRows.get(index);
+                    if (row.panel() != null && canOperate) {
+                        PacketDistributor.sendToServer(new io.github.ondreamqwq.drc.net.ConsoleOpenPacket(
+                                center, row.panel(), row.level(), row.subPath()));
                     }
                     return true;
                 }

@@ -47,6 +47,20 @@ public final class CenterInfo {
         }
         info.put("remotes", remotes);
 
+        ListTag consoles = new ListTag();
+        for (io.github.ondreamqwq.drc.compat.AeroworksCompat.Node node
+                : io.github.ondreamqwq.drc.compat.AeroworksCompat.nodes(level, center.consoles())) {
+            CompoundTag one = new CompoundTag();
+            one.putInt("x", node.console().getX());
+            one.putInt("y", node.console().getY());
+            one.putInt("z", node.console().getZ());
+            one.putInt("socket", node.socket());
+            one.putString("sub_path", node.subPath());
+            one.putString("label", node.label());
+            consoles.add(one);
+        }
+        info.put("consoles", consoles);
+
         String ownerName = center.owner() == null ? "-" : nameOf(level, center.owner());
         info.putString("owner", ownerName);
 

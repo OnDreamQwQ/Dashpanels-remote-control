@@ -29,5 +29,6 @@
   "gui.dashpanels_remote_control.center.add_edit": "+ edit",
   "gui.dashpanels_remote_control.center.not_owner": "Only the owner can change this",
   "gui.dashpanels_remote_control.center.unknown_player": "No such player: %s",
-  "gui.dashpanels_remote_control.remote.focus": "Panel %s / %s  %s"
+  "gui.dashpanels_remote_control.remote.focus": "Panel %s / %s  %s",
+  "gui.dashpanels_remote_control.center.consoles": "Consoles"
 }

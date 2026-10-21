@@ -29,5 +29,6 @@
   "gui.dashpanels_remote_control.center.add_edit": "+ 仅修改",
   "gui.dashpanels_remote_control.center.not_owner": "只有所有者能改权限",
   "gui.dashpanels_remote_control.center.unknown_player": "找不到玩家 %s",
-  "gui.dashpanels_remote_control.remote.focus": "面板 %s / %s  %s"
+  "gui.dashpanels_remote_control.remote.focus": "面板 %s / %s  %s",
+  "gui.dashpanels_remote_control.center.consoles": "控制台"
 }

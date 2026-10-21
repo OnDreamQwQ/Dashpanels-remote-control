@@ -40,8 +40,12 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     /** NBT key for the claimed panels, inside the block-entity update tag. */
     public static final String TAG_PANELS = "drc:panels";
 
+    /** NBT key for the Aeroworks consoles standing next to this terminal or its panels. */
+    public static final String TAG_CONSOLES = "drc:consoles";
+
     private UUID networkId = Networks.fresh();
     private List<BlockPos> panels = List.of();
+    private List<BlockPos> consoles = List.of();
     private int registryTimer;
 
     public PanelLinkTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -70,6 +74,11 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         return panels;
     }
 
+    /** The Aeroworks consoles this terminal can reach, if that mod is installed; empty otherwise. */
+    public List<BlockPos> consoles() {
+        return consoles;
+    }
+
     /** The nearest claimed panel, or {@code null} when there is none. */
     public BlockPos panelPos() {
         return panels.isEmpty() ? null : panels.getFirst();
@@ -88,8 +97,10 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
             registry.prune(server, networkId, server.dimension().location());
         }
         List<BlockPos> found = claim(level, pos);
-        if (!found.equals(panels)) {
+        List<BlockPos> nearby = io.github.ondreamqwq.drc.compat.AeroworksCompat.findConsoles(level, pos, found);
+        if (!found.equals(panels) || !nearby.equals(consoles)) {
             panels = found;
+            consoles = nearby;
             setChanged();
             level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
         }
@@ -135,6 +146,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
         return tag;
     }
 
@@ -145,7 +157,8 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         if (stored != null) {
             networkId = stored;
         }
-        panels = readPanels(tag);
+        panels = readPanels(tag, TAG_PANELS);
+        consoles = readPanels(tag, TAG_CONSOLES);
     }
 
     @Override
@@ -153,13 +166,14 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         super.saveAdditional(tag, registries);
         Networks.write(tag, networkId);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
     }
 
-    private static List<BlockPos> readPanels(CompoundTag tag) {
-        if (!tag.contains(TAG_PANELS, Tag.TAG_LONG_ARRAY)) {
+    private static List<BlockPos> readPanels(CompoundTag tag, String key) {
+        if (!tag.contains(key, Tag.TAG_LONG_ARRAY)) {
             return List.of();
         }
-        long[] raw = tag.getLongArray(TAG_PANELS);
+        long[] raw = tag.getLongArray(key);
         List<BlockPos> out = new ArrayList<>(raw.length);
         for (long packed : raw) {
             out.add(BlockPos.of(packed));
