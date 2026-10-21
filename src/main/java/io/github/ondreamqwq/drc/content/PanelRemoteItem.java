@@ -87,6 +87,9 @@ public class PanelRemoteItem extends Item {
             return InteractionResult.SUCCESS;
         }
         PanelRemoteData.bind(context.getItemInHand(), level.dimension().location(), context.getClickedPos());
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            receiver.recordRemote(serverPlayer);
+        }
         tell(player, "remote.bound", ChatFormatting.GREEN);
         if (receiver.panelPos() == null) {
             tell(player, "remote.bound_without_panel", ChatFormatting.YELLOW);

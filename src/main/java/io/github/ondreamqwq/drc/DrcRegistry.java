@@ -1,8 +1,10 @@
 package io.github.ondreamqwq.drc;
 
-import io.github.ondreamqwq.drc.content.PanelRemoteItem;
+import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlock;
+import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlock;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -26,20 +28,36 @@ public final class DrcRegistry {
     public static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, DrcMod.MOD_ID);
 
-    public static final DeferredBlock<PanelRemoteCenterBlock> PANEL_REMOTE_RECEIVER = BLOCKS.register(
+    public static final DeferredBlock<PanelRemoteCenterBlock> PANEL_REMOTE_CENTER = BLOCKS.register(
             "panel_remote_center",
             () -> new PanelRemoteCenterBlock(BlockBehaviour.Properties.of()
                     .strength(2.0F, 6.0F)
                     .noOcclusion()));
 
-    public static final DeferredItem<BlockItem> PANEL_REMOTE_RECEIVER_ITEM = ITEMS.register(
+    public static final DeferredItem<BlockItem> PANEL_REMOTE_CENTER_ITEM = ITEMS.register(
             "panel_remote_center",
-            () -> new BlockItem(PANEL_REMOTE_RECEIVER.get(), new Item.Properties()));
+            () -> new BlockItem(PANEL_REMOTE_CENTER.get(), new Item.Properties()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PanelRemoteCenterBlockEntity>>
-            PANEL_REMOTE_RECEIVER_BE = BLOCK_ENTITIES.register("panel_remote_center", () ->
+            PANEL_REMOTE_CENTER_BE = BLOCK_ENTITIES.register("panel_remote_center", () ->
                     BlockEntityType.Builder
-                            .of(PanelRemoteCenterBlockEntity::new, PANEL_REMOTE_RECEIVER.get())
+                            .of(PanelRemoteCenterBlockEntity::new, PANEL_REMOTE_CENTER.get())
+                            .build(null));
+
+    public static final DeferredBlock<PanelLinkTerminalBlock> PANEL_LINK_TERMINAL = BLOCKS.register(
+            "panel_link_terminal",
+            () -> new PanelLinkTerminalBlock(BlockBehaviour.Properties.of()
+                    .strength(2.0F, 6.0F)
+                    .noOcclusion()));
+
+    public static final DeferredItem<BlockItem> PANEL_LINK_TERMINAL_ITEM = ITEMS.register(
+            "panel_link_terminal",
+            () -> new BlockItem(PANEL_LINK_TERMINAL.get(), new Item.Properties()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PanelLinkTerminalBlockEntity>>
+            PANEL_LINK_TERMINAL_BE = BLOCK_ENTITIES.register("panel_link_terminal", () ->
+                    BlockEntityType.Builder
+                            .of(PanelLinkTerminalBlockEntity::new, PANEL_LINK_TERMINAL.get())
                             .build(null));
 
     public static final DeferredItem<PanelRemoteItem> PANEL_REMOTE = ITEMS.register(
@@ -51,7 +69,8 @@ public final class DrcRegistry {
                     .title(Component.translatable("itemGroup." + DrcMod.MOD_ID))
                     .icon(() -> new ItemStack(PANEL_REMOTE.get()))
                     .displayItems((params, output) -> {
-                        output.accept(PANEL_REMOTE_RECEIVER_ITEM.get());
+                        output.accept(PANEL_REMOTE_CENTER_ITEM.get());
+                        output.accept(PANEL_LINK_TERMINAL_ITEM.get());
                         output.accept(PANEL_REMOTE.get());
                     })
                     .build());

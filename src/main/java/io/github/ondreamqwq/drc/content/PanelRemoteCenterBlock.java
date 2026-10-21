@@ -8,8 +8,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -34,7 +39,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * <p>Same four connector properties as the panel link center block it replaced - they only exist so the model
  * can grow a stub toward each neighbouring cable, and so the block joins the same connectivity graph.
  */
-public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock {
+public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock implements NetworkBlock {
 
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
     public static final BooleanProperty EAST = BlockStateProperties.EAST;
@@ -93,6 +98,30 @@ public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock {
     }
 
     @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (level.isClientSide) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof PanelRemoteCenterBlockEntity center) {
+            center.setNetworkId(Networks.ofItem(stack));
+            if (placer instanceof ServerPlayer player) {
+                center.claim(player);
+            }
+        }
+    }
+
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+                                          InteractionHand hand, BlockHitResult hitResult) {
+        if (NetworkBlock.isNetworkItem(stack) && level.getBlockEntity(pos) instanceof NetworkMember member) {
+            NetworkBlock.binding(level, player, stack, member);
+            return ItemInteractionResult.SUCCESS;
+        }
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    @Override
     protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState,
                                      LevelAccessor level, BlockPos pos, BlockPos neighbourPos) {
         BooleanProperty property = FACING.get(direction);
@@ -126,12 +155,14 @@ public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock {
         BlockPos panel = receiver.panelPos();
         Component text;
         if (panel == null) {
-            text = report().append(tone("没有连上面板", ChatFormatting.YELLOW))
-                    .append(tone("（四周要有线缆或面板，且必须水平相邻）", ChatFormatting.DARK_GRAY));
+            text = report().append(tone("还没有连上面板", ChatFormatting.YELLOW))
+                    .append(tone("（用面板链接终端认领面板）", ChatFormatting.DARK_GRAY));
         } else {
-            text = report().append(tone("已连上面板 ", ChatFormatting.GRAY))
+            text = report().append(tone("服务 " + receiver.panels().size() + " 块面板，最近的在 ", ChatFormatting.GRAY))
                     .append(where(panel.getX() + " " + panel.getY() + " " + panel.getZ()));
         }
+        text = text.copy().append(tone(" · 网络 ", ChatFormatting.DARK_GRAY))
+                .append(where(Networks.shortId(receiver.networkId())));
         player.displayClientMessage(text, false);
         return InteractionResult.SUCCESS;
     }
@@ -139,7 +170,7 @@ public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock {
     // ------------------------------------------------------------------ report styling
 
     private static MutableComponent report() {
-        return Component.literal("面板接收器").withStyle(ChatFormatting.GOLD)
+        return Component.literal("面板遥控中心").withStyle(ChatFormatting.GOLD)
                 .append(Component.literal("：").withStyle(ChatFormatting.DARK_GRAY));
     }
 
