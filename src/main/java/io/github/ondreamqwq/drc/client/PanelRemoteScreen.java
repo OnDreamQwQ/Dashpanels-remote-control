@@ -169,12 +169,19 @@ public class PanelRemoteScreen extends Screen {
         Level level = Minecraft.getInstance().level;
         BlockEntity blockEntity = level == null ? null : level.getBlockEntity(receiverPos);
         List<AbstractPanelBlockEntity> found = new ArrayList<>();
+        BlockPos preferred = null;
         if (blockEntity instanceof PanelRemoteCenterBlockEntity receiver) {
+            preferred = receiver.defaultPanel();
             for (BlockPos pos : receiver.panels()) {
                 if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
                     found.add(panel);
                 }
             }
+        }
+        if (preferred != null) {
+            // The panel picked on the center's screen leads, so the view starts where the player left it.
+            BlockPos wanted = preferred;
+            found.sort((a, b) -> Boolean.compare(b.getBlockPos().equals(wanted), a.getBlockPos().equals(wanted)));
         }
         panels = List.copyOf(found);
         view[1] = DrcConfig.cameraTilt();
