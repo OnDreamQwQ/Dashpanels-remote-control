@@ -18,6 +18,7 @@
   "gui.dashpanels_remote_control.remote.bound": "已绑定到这个遥控中心",
   "gui.dashpanels_remote_control.remote.bound_without_panel": "但这个遥控中心还没有连上面板",
   "gui.dashpanels_remote_control.center.title": "面板遥控中心",
+  "gui.dashpanels_remote_control.center.terminals": "终端",
   "gui.dashpanels_remote_control.center.panels": "面板",
   "gui.dashpanels_remote_control.center.remotes": "遥控器",
   "gui.dashpanels_remote_control.center.players": "玩家",

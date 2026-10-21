@@ -42,7 +42,7 @@ public class CenterScreen extends Screen {
 
     private final BlockPos center;
     private final List<String> tabs = List.of(
-            Component.translatable("gui.dashpanels_remote_control.center.panels").getString(),
+            Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
             Component.translatable("gui.dashpanels_remote_control.center.remotes").getString(),
             Component.translatable("gui.dashpanels_remote_control.center.players").getString());
 
