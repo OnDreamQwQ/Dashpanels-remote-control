@@ -43,6 +43,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     /** NBT key for the served panels inside the block-entity update tag. */
     public static final String TAG_PANELS = "drc:panels";
 
+    private static final String TAG_DEFAULT = "drc:default";
     private static final String TAG_OWNER = "drc:owner";
     private static final String TAG_ACCESS = "drc:access";
     private static final String TAG_PLAYER = "player";
@@ -64,6 +65,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
 
     /** Every panel served by this center, nearest first. */
     private List<BlockPos> panels = List.of();
+
+    /** The panel the remote opens on; only ever one of {@link #panels()}. */
+    private BlockPos defaultPanel;
 
     private int registryTimer;
 
@@ -161,6 +165,22 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return panels.isEmpty() ? null : panels.getFirst();
     }
 
+    /** The panel the remote should open on, or {@code null} when the player never picked one. */
+    public BlockPos defaultPanel() {
+        return defaultPanel;
+    }
+
+    public void setDefaultPanel(BlockPos panel) {
+        if (panel == null || panel.equals(defaultPanel)) {
+            return;
+        }
+        defaultPanel = panel;
+        setChanged();
+        if (level != null) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
     /** Whether {@code pos} is one of the panels this center serves. */
     public boolean covers(BlockPos pos) {
         return panels.contains(pos);
@@ -214,6 +234,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+        if (defaultPanel != null) {
+            tag.putLong(TAG_DEFAULT, defaultPanel.asLong());
+        }
         return tag;
     }
 
@@ -228,6 +251,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         readAccess(tag);
         readRemotes(tag);
         panels = readPanels(tag);
+        defaultPanel = tag.contains(TAG_DEFAULT, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_DEFAULT)) : null;
     }
 
     @Override
@@ -240,6 +264,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         tag.put(TAG_ACCESS, writeAccess());
         tag.put(TAG_REMOTES, writeRemotes());
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+        if (defaultPanel != null) {
+            tag.putLong(TAG_DEFAULT, defaultPanel.asLong());
+        }
     }
 
     private ListTag writeAccess() {

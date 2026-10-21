@@ -13,5 +13,9 @@ public final class DrcNet {
         PayloadRegistrar registrar = event.registrar("1");
         registrar.playToServer(TerminalClickPacket.TYPE, TerminalClickPacket.STREAM_CODEC,
                 TerminalClickPacket::handle);
+        registrar.playToClient(CenterInfoPacket.TYPE, CenterInfoPacket.STREAM_CODEC,
+                CenterInfoPacket::handle);
+        registrar.playToServer(CenterSelectPacket.TYPE, CenterSelectPacket.STREAM_CODEC,
+                CenterSelectPacket::handle);
     }
 }

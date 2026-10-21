@@ -40,8 +40,12 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     /** NBT key for the claimed panels, inside the block-entity update tag. */
     public static final String TAG_PANELS = "drc:panels";
 
+    /** Update-tag flag: this terminal shares its network with something else. */
+    public static final String TAG_BOUND = "drc:bound";
+
     private UUID networkId = Networks.fresh();
     private List<BlockPos> panels = List.of();
+    private boolean bound;
     private int registryTimer;
 
     public PanelLinkTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -70,6 +74,11 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
         return panels;
     }
 
+    /** Whether this terminal is part of a network shared with another block (that is: it is bound). */
+    public boolean bound() {
+        return bound;
+    }
+
     /** The nearest claimed panel, or {@code null} when there is none. */
     public BlockPos panelPos() {
         return panels.isEmpty() ? null : panels.getFirst();
@@ -88,8 +97,11 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
             registry.prune(server, networkId, server.dimension().location());
         }
         List<BlockPos> found = claim(level, pos);
-        if (!found.equals(panels)) {
+        boolean nowBound = level instanceof ServerLevel server
+                && NetworkRegistry.get(server).members(networkId, server.dimension().location()).size() > 1;
+        if (!found.equals(panels) || nowBound != bound) {
             panels = found;
+            bound = nowBound;
             setChanged();
             level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
         }
@@ -135,6 +147,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
+        tag.putBoolean(TAG_BOUND, bound);
         return tag;
     }
 
@@ -146,6 +159,7 @@ public class PanelLinkTerminalBlockEntity extends BaseBlockEntity implements Net
             networkId = stored;
         }
         panels = readPanels(tag);
+        bound = tag.getBoolean(TAG_BOUND);
     }
 
     @Override

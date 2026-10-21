@@ -16,5 +16,11 @@
   "gui.dashpanels_remote_control.remote.too_far": "That center's chunk is not loaded",
   "gui.dashpanels_remote_control.remote.no_panel": "That center has no panel yet",
   "gui.dashpanels_remote_control.remote.bound": "Bound to this center",
-  "gui.dashpanels_remote_control.remote.bound_without_panel": "but it has no panel yet"
+  "gui.dashpanels_remote_control.remote.bound_without_panel": "but it has no panel yet",
+  "gui.dashpanels_remote_control.center.title": "Remote Center",
+  "gui.dashpanels_remote_control.center.panels": "Panels",
+  "gui.dashpanels_remote_control.center.remotes": "Remotes",
+  "gui.dashpanels_remote_control.center.players": "Players",
+  "gui.dashpanels_remote_control.center.empty": "Nothing here yet",
+  "gui.dashpanels_remote_control.center.readonly": "You may edit, but not operate the modules"
 }

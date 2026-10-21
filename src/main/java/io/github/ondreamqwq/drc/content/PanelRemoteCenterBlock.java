@@ -152,6 +152,11 @@ public class PanelRemoteCenterBlock extends ModulesNetworkMemberBlock implements
         if (level.isClientSide || !(level.getBlockEntity(pos) instanceof PanelRemoteCenterBlockEntity receiver)) {
             return InteractionResult.SUCCESS;
         }
+        if (!player.isShiftKeyDown() && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            // The screen carries the same information the chat report does, only browsable.
+            io.github.ondreamqwq.drc.net.CenterInfo.sendTo(serverPlayer, receiver);
+            return InteractionResult.SUCCESS;
+        }
         BlockPos panel = receiver.panelPos();
         Component text;
         if (panel == null) {
