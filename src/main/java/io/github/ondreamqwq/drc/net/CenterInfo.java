@@ -68,6 +68,7 @@ public final class CenterInfo {
         center.accessList().forEach((uuid, levelOfAccess) -> {
             CompoundTag one = new CompoundTag();
             one.putString("name", nameOf(level, uuid));
+            one.putString("uuid", uuid.toString());
             one.putString("level", levelOfAccess == PanelRemoteCenterBlockEntity.ACCESS_OPERATE
                     ? "can operate" : "can edit");
             one.putInt("level_id", levelOfAccess);
@@ -89,6 +90,6 @@ public final class CenterInfo {
         if (level.getServer().getPlayerList().getPlayer(uuid) instanceof ServerPlayer online) {
             return online.getGameProfile().getName();
         }
-        return uuid.toString().substring(0, 8);
+        return uuid.toString();
     }
 }

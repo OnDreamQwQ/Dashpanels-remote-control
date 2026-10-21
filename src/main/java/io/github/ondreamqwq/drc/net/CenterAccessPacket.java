@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** Client to server: change the center's player list. Only the owner is allowed to. */
-public record CenterAccessPacket(BlockPos center, byte action, String name, byte level)
+public record CenterAccessPacket(BlockPos center, byte action, String name, byte level, String uuid)
         implements CustomPacketPayload {
 
     public static final byte ADD = 0;
@@ -32,6 +32,7 @@ public record CenterAccessPacket(BlockPos center, byte action, String name, byte
                     ByteBufCodecs.BYTE, CenterAccessPacket::action,
                     ByteBufCodecs.STRING_UTF8, CenterAccessPacket::name,
                     ByteBufCodecs.BYTE, CenterAccessPacket::level,
+                    ByteBufCodecs.STRING_UTF8, CenterAccessPacket::uuid,
                     CenterAccessPacket::new);
 
     @Override
@@ -57,7 +58,10 @@ public record CenterAccessPacket(BlockPos center, byte action, String name, byte
                         true);
                 return;
             }
-            UUID target = resolve(player, packet.name());
+            UUID target = parseUuid(packet.uuid());
+            if (target == null) {
+                target = resolve(player, packet.name());
+            }
             if (target == null) {
                 player.displayClientMessage(
                         net.minecraft.network.chat.Component.translatable("gui.dashpanels_remote_control.center.unknown_player",
@@ -80,6 +84,16 @@ public record CenterAccessPacket(BlockPos center, byte action, String name, byte
     }
 
     /** Online players first, then the server's name cache, so offline players can be added too. */
+    private static UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException broken) {
+            return null;
+        }
+    }
     private static UUID resolve(ServerPlayer player, String name) {
         if (name == null || name.isBlank()) {
             return null;

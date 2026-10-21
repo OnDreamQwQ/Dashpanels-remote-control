@@ -60,7 +60,7 @@ public class CenterScreen extends Screen {
     private net.minecraft.client.gui.components.EditBox nameBox;
     private int editBoxTop;
 
-    private record Row(String text, String hint, BlockPos panel, int level, String subPath) {
+    private record Row(String text, String hint, BlockPos panel, int level, String subPath, String uuid) {
     }
 
     private String ownerName = "";
@@ -90,7 +90,7 @@ public class CenterScreen extends Screen {
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
             int claimed = one.getInt("panels");
             String label = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1, null));
+            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1, null, null));
             if (one.getBoolean("selected")) {
                 selected = i;
             }
@@ -99,7 +99,7 @@ public class CenterScreen extends Screen {
         ListTag remotes = info.getList("remotes", Tag.TAG_COMPOUND);
         for (int i = 0; i < remotes.size(); i++) {
             CompoundTag one = remotes.getCompound(i);
-            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1, null));
+            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1, null, null));
         }
 
         ownerName = info.getString("owner");
@@ -107,9 +107,9 @@ public class CenterScreen extends Screen {
         for (int i = 0; i < access.size(); i++) {
             CompoundTag one = access.getCompound(i);
             playerRows.add(new Row(one.getString("name"), one.getString("level"), null,
-                    one.getInt("level_id"), null));
+                    one.getInt("level_id"), null, one.getString("uuid")));
         }
-        playerRows.addFirst(new Row(ownerName, "owner", null, -1, null));
+        playerRows.addFirst(new Row(ownerName, "owner", null, -1, null, null));
 
         ListTag consoles = info.getList("consoles", Tag.TAG_COMPOUND);
         for (int i = 0; i < consoles.size(); i++) {
@@ -117,7 +117,7 @@ public class CenterScreen extends Screen {
             BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
             String label = one.getString("label");
             String where = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            consoleRows.add(new Row(label, where, pos, one.getInt("socket"), one.getString("sub_path")));
+            consoleRows.add(new Row(label, where, pos, one.getInt("socket"), one.getString("sub_path"), null));
         }
     }
 
@@ -229,9 +229,9 @@ public class CenterScreen extends Screen {
         graphics.drawString(font, label, bx + (bw - font.width(label)) / 2, by + 2, TEXT, false);
     }
 
-    private void sendAccess(byte action, String name, int level) {
+    private void sendAccess(byte action, String name, int level, String uuid) {
         PacketDistributor.sendToServer(
-                new io.github.ondreamqwq.drc.net.CenterAccessPacket(center, action, name, (byte) level));
+                new io.github.ondreamqwq.drc.net.CenterAccessPacket(center, action, name, (byte) level, uuid));
         click();
     }
 
@@ -243,7 +243,7 @@ public class CenterScreen extends Screen {
         if (name.isEmpty()) {
             return;
         }
-        sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.ADD, name, level);
+        sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.ADD, name, level, "");
         nameBox.setValue("");
     }
 
@@ -265,10 +265,10 @@ public class CenterScreen extends Screen {
                 return;
             }
             if (button == 1) {
-                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.REMOVE, row.text(), 0);
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.REMOVE, row.text(), 0, row.uuid());
             } else {
                 int wanted = row.level() == 0 ? 1 : 0;
-                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.SET_LEVEL, row.text(), wanted);
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.SET_LEVEL, row.text(), wanted, row.uuid());
             }
             return;
         }
