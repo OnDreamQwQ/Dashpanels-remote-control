@@ -1,0 +1,72 @@
+package io.github.ondreamqwq.drc.net;
+
+import io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+/**
+ * Moves the center's default terminal one step, sent by sneak scrolling with the remote in hand.
+ *
+ * <p>The remote opens on the terminal the center says is default, so this is what makes "sneak and
+ * scroll to pick a terminal" work from the world: the choice is stored on the center, and the next
+ * time the remote opens it starts there.
+ */
+public record CycleTerminalPacket(BlockPos center, int step) implements CustomPacketPayload {
+
+    public static final CustomPacketPayload.Type<CycleTerminalPacket> TYPE =
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(
+                    "dashpanels_remote_control", "cycle_terminal"));
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, CycleTerminalPacket> STREAM_CODEC =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC, CycleTerminalPacket::center,
+                    ByteBufCodecs.VAR_INT, CycleTerminalPacket::step,
+                    CycleTerminalPacket::new);
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
+
+    public static void handle(CycleTerminalPacket packet, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Player player = context.player();
+            if (!(player.level().getBlockEntity(packet.center())
+                    instanceof PanelRemoteCenterBlockEntity center)) {
+                return;
+            }
+            if (player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(packet.center())) > 64.0D * 64.0D) {
+                return;
+            }
+            if (!center.canOperate(player.getUUID())) {
+                return;
+            }
+            var terminals = center.terminals();
+            if (terminals.isEmpty()) {
+                player.displayClientMessage(
+                        Component.translatable("gui.dashpanels_remote_control.remote.no_terminal"), true);
+                return;
+            }
+            BlockPos current = center.defaultTerminal();
+            int index = current == null ? -1 : terminals.indexOf(current);
+            int next = Math.floorMod(index + (index < 0 ? 0 : packet.step()), terminals.size());
+            BlockPos picked = terminals.get(next);
+            center.setDefaultTerminal(picked);
+            String name = player.level().getBlockEntity(picked) instanceof PanelLinkTerminalBlockEntity terminal
+                    && !terminal.name().isBlank()
+                    ? terminal.name()
+                    : Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString();
+            player.displayClientMessage(Component.translatable(
+                    "gui.dashpanels_remote_control.remote.terminal_switched",
+                    next + 1, terminals.size(), name), true);
+        });
+    }
+}

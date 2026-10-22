@@ -25,5 +25,7 @@ public final class DrcNet {
                 RenameTerminalPacket::handle);
         registrar.playToServer(ConsoleOpenPacket.TYPE, ConsoleOpenPacket.STREAM_CODEC,
                 ConsoleOpenPacket::handle);
+        registrar.playToServer(CycleTerminalPacket.TYPE, CycleTerminalPacket.STREAM_CODEC,
+                CycleTerminalPacket::handle);
     }
 }

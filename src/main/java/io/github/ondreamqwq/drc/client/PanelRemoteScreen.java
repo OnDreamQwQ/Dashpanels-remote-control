@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.math.Axis;
 import io.github.ondreamqwq.drc.DrcConfig;
+import io.github.ondreamqwq.drc.compat.AeroworksCompat;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
 import io.github.ondreamqwq.drc.net.TerminalClickPacket;
 import java.lang.reflect.Field;
@@ -86,6 +87,13 @@ import org.lwjgl.system.MemoryStack;
 public class PanelRemoteScreen extends Screen {
 
     private static final int BACKDROP = 0x8C0E1116;
+    private static final int LIST_BUTTON_WIDTH = 96;
+    private static final int LIST_BUTTON_HEIGHT = 18;
+    private static final int LIST_BUTTON_IDLE = 0xFF1A1A1F;
+    private static final int LIST_BUTTON_HOVER = 0xFF2A2A32;
+    private static final int LIST_BUTTON_EDGE = 0xFF585858;
+    private static final int LIST_BUTTON_TEXT = 0xFFE8E8E8;
+    private static final int LIST_BUTTON_HINT = 0xFF9A9A9A;
     /**
      * The crosshair is drawn from its texture rather than through the GUI sprite manager.
      *
@@ -338,6 +346,23 @@ public class PanelRemoteScreen extends Screen {
             maxY = Math.max(maxY, pos.getY());
             maxZ = Math.max(maxZ, pos.getZ());
         }
+        // A console is a whole row of blocks, not the one block that touches the terminal: without this
+        // the camera centred on the near end and the rest of the console sat off to one side.
+        Level level = Minecraft.getInstance().level;
+        if (level != null) {
+            for (BlockPos console : current.consoles()) {
+                BlockPos[] box = AeroworksCompat.bounds(level, console);
+                if (box.length < 2) {
+                    continue;
+                }
+                minX = Math.min(minX, Math.min(box[0].getX(), box[1].getX()));
+                minY = Math.min(minY, Math.min(box[0].getY(), box[1].getY()));
+                minZ = Math.min(minZ, Math.min(box[0].getZ(), box[1].getZ()));
+                maxX = Math.max(maxX, Math.max(box[0].getX(), box[1].getX()));
+                maxY = Math.max(maxY, Math.max(box[0].getY(), box[1].getY()));
+                maxZ = Math.max(maxZ, Math.max(box[0].getZ(), box[1].getZ()));
+            }
+        }
         if (minX > maxX) {
             // Nothing resolvable: keep a sane camera so the screen still behaves.
             minX = minY = minZ = 0;
@@ -452,6 +477,7 @@ public class PanelRemoteScreen extends Screen {
         }
 
         drawPanels(graphics, partialTick);
+        drawListButton(graphics, mouseX, mouseY);
         if (scrollMode) {
             // The wheel grabbed a module; moving off it lets go, the same way lifting the mouse would.
             Hit under = hitAt(mouseX, mouseY);
@@ -462,6 +488,34 @@ public class PanelRemoteScreen extends Screen {
         // Layer order, bottom to top: backdrop, models, crosshair + its indicator, then our own text.
         // The crosshair, the value indicator and the frames are drawn from ScreenEvent.Render.Post instead,
         // because anything queued here can still be overtaken by a batch the game flushes later.
+    }
+
+    /**
+     * The button that opens the terminal list, so the menu is findable without knowing about Tab.
+     *
+     * <p>Drawn by hand rather than added as a widget because this screen never calls {@code super.render},
+     * which is what would draw widgets.
+     */
+    private void drawListButton(GuiGraphics graphics, int mouseX, int mouseY) {
+        int[] box = listButton();
+        boolean hovered = overListButton(mouseX, mouseY);
+        graphics.fill(box[0], box[1], box[0] + box[2], box[1] + box[3],
+                hovered ? LIST_BUTTON_HOVER : LIST_BUTTON_IDLE);
+        graphics.renderOutline(box[0], box[1], box[2], box[3], LIST_BUTTON_EDGE);
+        graphics.drawString(font, Component.translatable("gui.dashpanels_remote_control.remote.list"),
+                box[0] + 6, box[1] + 5, LIST_BUTTON_TEXT, false);
+        graphics.drawString(font, Component.literal("Tab"),
+                box[0] + box[2] - 24, box[1] + 5, LIST_BUTTON_HINT, false);
+    }
+
+    private int[] listButton() {
+        return new int[] {width - LIST_BUTTON_WIDTH - 6, 6, LIST_BUTTON_WIDTH, LIST_BUTTON_HEIGHT};
+    }
+
+    private boolean overListButton(double mouseX, double mouseY) {
+        int[] box = listButton();
+        return mouseX >= box[0] && mouseX < box[0] + box[2]
+                && mouseY >= box[1] && mouseY < box[1] + box[3];
     }
 
     /**
@@ -1262,6 +1316,11 @@ public class PanelRemoteScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && overListButton(mouseX, mouseY)) {
+            playClick();
+            Minecraft.getInstance().setScreen(new RemoteListScreen(this, pages, page));
+            return true;
+        }
         ModuleHoldInteraction<?> active = activeHold();
         if (active != null && holding != null) {
             // The module owns the mouse now, so it gets the raw button first - pick, attack and use are
@@ -1287,12 +1346,13 @@ public class PanelRemoteScreen extends Screen {
                 holdButton = button;
                 return true;
             }
-            // No panel module there - the console is the other clickable thing. Clicking anywhere on it
-            // opens the console's own page, exactly like right clicking the console in the world.
+            // No panel module there - the console is the other clickable thing. It opens the console's
+            // own operating page, listing its sockets, and picking one asks the center to open that
+            // module's menu - the console refuses players who are not standing at it, which the remote
+            // by definition is not.
             ConsoleHit console = consoleHit(mouseX, mouseY);
-            if (console != null
-                    && io.github.ondreamqwq.drc.compat.AeroworksCompat.openPage(
-                            Minecraft.getInstance().level, console.pos())) {
+            if (console != null) {
+                ConsoleListScreen.open(receiverPos, console.pos(), this);
                 playClick();
             }
             return true;

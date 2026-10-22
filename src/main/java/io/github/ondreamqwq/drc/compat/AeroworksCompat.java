@@ -87,7 +87,39 @@ public final class AeroworksCompat {
         return isLoaded() ? Hooks.parts(level, pos) : List.of();
     }
 
-    /** Opens the console's own overview page - what right clicking the console in the world does. */
+    /**
+     * The corners of the whole console that {@code pos} belongs to, as {@code {min, max}}.
+     *
+     * <p>A console is a row of blocks, not one block. Framing the camera on the single console block
+     * put the centre on whichever end happened to touch the terminal; this returns the row's own extent
+     * so the page is centred on the console the player is actually looking at.
+     */
+    public static BlockPos[] bounds(Level level, BlockPos pos) {
+        if (!isLoaded()) {
+            return new BlockPos[] {pos, pos};
+        }
+        List<BlockPos> all = Hooks.parts(level, pos);
+        if (all.isEmpty()) {
+            return new BlockPos[] {pos, pos};
+        }
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (BlockPos one : all) {
+            minX = Math.min(minX, one.getX());
+            minY = Math.min(minY, one.getY());
+            minZ = Math.min(minZ, one.getZ());
+            maxX = Math.max(maxX, one.getX());
+            maxY = Math.max(maxY, one.getY());
+            maxZ = Math.max(maxZ, one.getZ());
+        }
+        return new BlockPos[] {new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ)};
+    }
+
+    /** The console's own overview page - what right clicking the console in the world does. */
     public static boolean openPage(Level level, BlockPos pos) {
         return isLoaded() && Hooks.openPage(level, pos);
     }
@@ -104,27 +136,42 @@ public final class AeroworksCompat {
 
         static List<BlockPos> findConsoles(Level level, BlockPos terminal, List<BlockPos> panels) {
             java.util.Set<BlockPos> found = new java.util.LinkedHashSet<>();
-            scan(level, terminal, found);
-            for (BlockPos panel : panels) {
-                scan(level, panel, found);
-                if (found.size() >= MAX_CONSOLES) {
-                    break;
+            java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+            queue.add(terminal);
+            queue.addAll(panels);
+            java.util.Set<BlockPos> scanned = new java.util.LinkedHashSet<>();
+            while (!queue.isEmpty() && found.size() < MAX_CONSOLES) {
+                BlockPos around = queue.poll();
+                if (!scanned.add(around)) {
+                    continue;
+                }
+                for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
+                    BlockPos pos = around.relative(direction);
+                    if (found.contains(pos) || !level.isLoaded(pos)) {
+                        continue;
+                    }
+                    if (!(level.getBlockEntity(pos)
+                            instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console)) {
+                        continue;
+                    }
+                    // A console is a row: take the whole group and keep looking around its far ends, so a
+                    // long row does not stop at the console that happened to touch the terminal.
+                    for (com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity member
+                            : com.mred231.aeroworks.content.controls.console.ConsoleGroup.of(console)) {
+                        if (found.size() >= MAX_CONSOLES) {
+                            break;
+                        }
+                        if (found.add(member.getBlockPos().immutable())) {
+                            queue.add(member.getBlockPos());
+                        }
+                    }
+                    if (found.add(pos.immutable())) {
+                        queue.add(pos);
+                    }
                 }
             }
             List<BlockPos> all = List.copyOf(found);
             return all.size() <= MAX_CONSOLES ? all : all.subList(0, MAX_CONSOLES);
-        }
-
-        private static void scan(Level level, BlockPos around, java.util.Set<BlockPos> found) {
-            for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
-                BlockPos pos = around.relative(direction);
-                if (found.contains(pos)) {
-                    continue;
-                }
-                if (level.getBlockEntity(pos) instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity) {
-                    found.add(pos.immutable());
-                }
-            }
         }
 
         static List<Node> nodes(Level level, List<BlockPos> consoles) {
