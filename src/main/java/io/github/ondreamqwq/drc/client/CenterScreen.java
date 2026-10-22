@@ -74,6 +74,15 @@ public class CenterScreen extends Screen {
         read(info);
     }
 
+    public BlockPos center() {
+        return center;
+    }
+
+    /** Refreshes the rows of the screen that is already open, keeping the page the owner is on. */
+    public void update(CompoundTag info) {
+        read(info);
+    }
+
     public static void open(BlockPos center, CompoundTag info) {
         net.minecraft.client.Minecraft.getInstance().setScreen(new CenterScreen(center, info));
     }
@@ -332,11 +341,18 @@ public class CenterScreen extends Screen {
                 int ry = y + ROW_TOP + i * ROW_HEIGHT;
                 if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
                     click();
-                    BlockPos panel = panelRows.get(index).panel();
+                    Row row = panelRows.get(index);
+                    BlockPos panel = row.panel();
+                    if (button == 1) {
+                        if (panel != null) {
+                            TerminalRenameScreen.open(panel, row.raw());
+                        }
+                        return true;
+                    }
                     if (panel != null && canOperate) {
                         selected = index;
                         PacketDistributor.sendToServer(
-                                new io.github.ondreamqwq.drc.net.CenterSelectPacket(center, panel));
+                                new io.github.ondreamqwq.drc.net.CenterSelectPacket(center, panel, true));
                     }
                     return true;
                 }

@@ -29,16 +29,22 @@ public record RenameTerminalPacket(BlockPos terminal, String name) implements Cu
     }
 
     public static void handle(RenameTerminalPacket packet, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
-        if (player.distanceToSqr(packet.terminal().getCenter()) > 64.0D * 64.0D) {
-            return;
-        }
-        if (!(player.level().getBlockEntity(packet.terminal())
-                instanceof PanelLinkTerminalBlockEntity terminal)) {
-            return;
-        }
-        terminal.setName(packet.name());
+        // Block entities must be touched on the server thread: off it the write is lost without a word.
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (player.distanceToSqr(packet.terminal().getCenter()) > 64.0D * 64.0D) {
+                return;
+            }
+            if (!(player.level().getBlockEntity(packet.terminal())
+                    instanceof PanelLinkTerminalBlockEntity terminal)) {
+                return;
+            }
+            terminal.setName(packet.name());
+            player.displayClientMessage(
+                    net.minecraft.network.chat.Component.translatable(
+                            "gui.dashpanels_remote_control.terminal.renamed", packet.name()), true);
+        });
     }
 }

@@ -57,7 +57,7 @@ public record ConsoleUsePacket(BlockPos center, BlockPos console) implements Cus
             }
             // The control session is a world session: it aims with the player's own eyes, so starting it
             // from far away only makes the HUD blink and die. Say why instead of doing nothing.
-            if (player.distanceToSqr(Vec3.atCenterOf(packet.console())) > 24.0D * 24.0D) {
+            if (player.distanceToSqr(Vec3.atCenterOf(packet.console())) > 8.0D * 8.0D) {
                 player.displayClientMessage(
                         net.minecraft.network.chat.Component.translatable(
                                 "gui.dashpanels_remote_control.remote.console_too_far"), true);

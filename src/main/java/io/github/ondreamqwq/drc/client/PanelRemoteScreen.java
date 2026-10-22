@@ -450,7 +450,7 @@ public class PanelRemoteScreen extends Screen {
         }
         if (!current.terminal().equals(center.defaultTerminal())) {
             PacketDistributor.sendToServer(
-                    new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, current.terminal()));
+                    new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, current.terminal(), false));
         }
     }
 
@@ -589,7 +589,7 @@ public class PanelRemoteScreen extends Screen {
         float pitch = view[1];
         if (panel != null) {
             Direction facing = facing(panel);
-            blockYaw = Mth.wrapDegrees(facing.toYRot() + 180.0F + view[0]);
+            blockYaw = Mth.wrapDegrees(facing.toYRot() + view[0]);
             pitch += panel instanceof WallPanelBlockEntity ? 90.0F
                     : panel instanceof CeilingPanelBlockEntity ? 135.0F
                     : 0.0F;

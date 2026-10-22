@@ -35,7 +35,13 @@ public record CenterInfoPacket(BlockPos center, CompoundTag info) implements Cus
             // The remote asks for terminal switches while it is open, and the server answers with a fresh
             // info tag. Opening the center from that answer would shove the remote away - so only the
             // center's own screen takes it.
-            if (Minecraft.getInstance().screen instanceof PanelRemoteScreen) {
+            net.minecraft.client.gui.screens.Screen screen = Minecraft.getInstance().screen;
+            if (screen instanceof PanelRemoteScreen) {
+                return;
+            }
+            if (screen instanceof CenterScreen open && open.center().equals(packet.center())) {
+                // Keeping the same screen keeps the page, the scroll position and the name being typed.
+                open.update(packet.info());
                 return;
             }
             CenterScreen.open(packet.center(), packet.info());

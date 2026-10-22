@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** Client to server: "this is the terminal the remote should follow". */
-public record CenterSelectPacket(BlockPos center, BlockPos terminal) implements CustomPacketPayload {
+public record CenterSelectPacket(BlockPos center, BlockPos terminal, boolean reply) implements CustomPacketPayload {
 
     public static final Type<CenterSelectPacket> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(DrcMod.MOD_ID, "center_select"));
@@ -20,6 +20,7 @@ public record CenterSelectPacket(BlockPos center, BlockPos terminal) implements 
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC, CenterSelectPacket::center,
                     BlockPos.STREAM_CODEC, CenterSelectPacket::terminal,
+                    net.minecraft.network.codec.ByteBufCodecs.BOOL, CenterSelectPacket::reply,
                     CenterSelectPacket::new);
 
     @Override
@@ -42,7 +43,10 @@ public record CenterSelectPacket(BlockPos center, BlockPos terminal) implements 
                 return;
             }
             center.setDefaultTerminal(packet.terminal());
-            CenterInfo.sendTo(player, center);
+            // The remote sends this as it closes; answering it would pop the center open right after ESC.
+            if (packet.reply()) {
+                CenterInfo.sendTo(player, center);
+            }
         });
     }
 }

@@ -52,5 +52,6 @@
   "gui.dashpanels_remote_control.center.level_edit": "can edit",
   "gui.dashpanels_remote_control.center.level_owner": "owner",
   "gui.dashpanels_remote_control.center.level_operate": "can operate",
-  "gui.dashpanels_remote_control.center.rename_hint": "right click a terminal to rename it"
+  "gui.dashpanels_remote_control.center.rename_hint": "right click a terminal to rename it",
+  "gui.dashpanels_remote_control.terminal.renamed": "renamed to %s"
 }
