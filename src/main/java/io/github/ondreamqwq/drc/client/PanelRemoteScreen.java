@@ -985,6 +985,23 @@ public class PanelRemoteScreen extends Screen {
      * dial (a GUI type that never depth tests) showed while its number (text) was swallowed by the model.
      * Clearing the depth buffer the panels filled in makes any depth test pass instead.
      */
+    /**
+     * Puts whatever comes next on top of the 3D panels, for screens that draw them as a backdrop.
+     *
+     * <p>A list screen renders the remote's view read-only and then paints its own menu over it. Modules
+     * draw through the game's shared buffer source, and those vertices are only submitted at the very end
+     * of the frame - which is after the menu - so the model would cover the list. Draining now, and
+     * clearing the depth the panels wrote, puts the menu in front where it belongs.
+     */
+    public static void beginOverlay(GuiGraphics graphics) {
+        graphics.flush();
+        drainBuffers(Minecraft.getInstance().renderBuffers().bufferSource());
+        RenderSystem.depthMask(true);
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+    }
+
     private void beginTopPass(GuiGraphics graphics) {
         flushEveryBatch(graphics);
         // glClear honours the depth write mask: with the mask off - which is where the GUI batch leaves it -
@@ -1346,13 +1363,15 @@ public class PanelRemoteScreen extends Screen {
                 holdButton = button;
                 return true;
             }
-            // No panel module there - the console is the other clickable thing. It opens the console's
-            // own operating page, listing its sockets, and picking one asks the center to open that
-            // module's menu - the console refuses players who are not standing at it, which the remote
-            // by definition is not.
+            // No panel module there - the console is the other clickable thing. Clicking a socket opens
+            // that module's own operating screen, exactly like right clicking the module on the console
+            // itself. The request goes through the center because Aeroworks refuses players who are not
+            // standing at the console, which the remote by definition is not.
             ConsoleHit console = consoleHit(mouseX, mouseY);
             if (console != null) {
-                ConsoleListScreen.open(receiverPos, console.pos(), this);
+                PacketDistributor.sendToServer(
+                        new io.github.ondreamqwq.drc.net.ConsoleOpenPacket(
+                                receiverPos, console.pos(), console.socket(), ""));
                 playClick();
             }
             return true;
