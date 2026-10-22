@@ -193,6 +193,10 @@ public class CenterScreen extends Screen {
             }
         }
 
+        if (page == 0) {
+            graphics.drawString(font, Component.translatable("gui.dashpanels_remote_control.center.rename_hint"),
+                    x + 10, y + HEIGHT - 14, TEXT_DIM, false);
+        }
         if (page == 0 && !canOperate) {
             graphics.drawString(font, Component.translatable("gui.dashpanels_remote_control.center.readonly"),
                     x + 8, y + HEIGHT - 12, TEXT_DIM, false);
