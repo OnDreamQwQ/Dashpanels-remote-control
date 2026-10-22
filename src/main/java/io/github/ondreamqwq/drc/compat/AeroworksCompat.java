@@ -75,8 +75,9 @@ public final class AeroworksCompat {
         return isLoaded() ? Hooks.describe(level, pos) : pos.toShortString();
     }
 
-    public static boolean openMenu(ServerPlayer player, BlockPos consolePos, int socket, String subPath) {
-        return isLoaded() && Hooks.openMenu(player, consolePos, socket, subPath);
+    /** Starts operating the console, what right clicking it in the world does. */
+    public static boolean startUsing(ServerPlayer player, BlockPos consolePos) {
+        return isLoaded() && Hooks.startUsing(player, consolePos);
     }
 
     /**
@@ -321,21 +322,17 @@ public final class AeroworksCompat {
         }
 
         /**
-         * Opens the module's own menu without asking Aeroworks whether the player is close enough: the
-         * center already decided they may operate it. Everything else stays theirs - their menu, their
-         * screen, their packets.
+         * Starts operating the console, exactly as right clicking it in the world does.
+         *
+         * <p>Aeroworks has no "operate a module" screen. Clicking a console with an empty hand calls
+         * {@code checkAndStartUsing}, which marks this player as the console's user; the console then
+         * syncs that user to the client, and the client's own {@code startUsing} opens the control
+         * session (the HUD with the axis widgets, where modules are dragged directly). The only thing
+         * skipped here is their distance check - the center already decided the player may operate it.
          */
-        static boolean openMenu(ServerPlayer player, BlockPos consolePos, int socket, String subPath) {
-            if (!(player.level() instanceof net.minecraft.server.level.ServerLevel level)) {
-                return false;
-            }
-            if (!(level.getBlockEntity(consolePos)
+        static boolean startUsing(ServerPlayer player, BlockPos consolePos) {
+            if (!(player.level().getBlockEntity(consolePos)
                     instanceof com.mred231.aeroworks.content.controls.console.ConsoleBlockEntity console)) {
-                return false;
-            }
-            com.mred231.aeroworks.content.controls.module.MountedModule node =
-                    console.moduleNodeAt((byte) socket, subPath);
-            if (node == null) {
                 return false;
             }
             if (console.hasController() && !console.checkUser(player.getUUID())) {
@@ -343,13 +340,11 @@ public final class AeroworksCompat {
                         net.minecraft.network.chat.Component.translatable("message.aeroworks.console.busy"), true);
                 return false;
             }
-            com.mred231.aeroworks.content.controls.socket.ConsoleSocket holder =
-                    new com.mred231.aeroworks.content.controls.socket.ConsoleSocket(console, socket, subPath);
-            net.minecraft.network.chat.Component title = node.toStack().getHoverName();
-            player.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                    (id, inventory, p) -> new com.mred231.aeroworks.content.controls.module.ModuleMenu(
-                            com.mred231.aeroworks.AeroworksMenuTypes.MODULE.get(), id, inventory, holder),
-                    title), holder::writeTo);
+            if (!console.checkAndStartUsing(player.getUUID())) {
+                player.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable("message.aeroworks.console.busy"), true);
+                return false;
+            }
             return true;
         }
     }

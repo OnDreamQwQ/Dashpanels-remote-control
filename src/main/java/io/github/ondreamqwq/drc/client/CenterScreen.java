@@ -3,6 +3,7 @@ package io.github.ondreamqwq.drc.client;
 import io.github.ondreamqwq.drc.DrcMod;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -342,8 +343,10 @@ public class CenterScreen extends Screen {
                     click();
                     Row row = consoleRows.get(index);
                     if (row.panel() != null && canOperate) {
-                        PacketDistributor.sendToServer(new io.github.ondreamqwq.drc.net.ConsoleOpenPacket(
-                                center, row.panel(), row.level(), row.subPath()));
+                        // Same as clicking a console in the remote: start operating it, not open a menu.
+                        Minecraft.getInstance().setScreen(null);
+                        PacketDistributor.sendToServer(
+                                new io.github.ondreamqwq.drc.net.ConsoleUsePacket(center, row.panel()));
                     }
                     return true;
                 }

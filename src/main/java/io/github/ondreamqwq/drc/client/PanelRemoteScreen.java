@@ -1363,16 +1363,16 @@ public class PanelRemoteScreen extends Screen {
                 holdButton = button;
                 return true;
             }
-            // No panel module there - the console is the other clickable thing. Clicking a socket opens
-            // that module's own operating screen, exactly like right clicking the module on the console
-            // itself. The request goes through the center because Aeroworks refuses players who are not
-            // standing at the console, which the remote by definition is not.
+            // No panel module there - the console is the other clickable thing. In Aeroworks a console is
+            // not operated through a menu: right clicking it marks you as its user and the client turns
+            // that into the control session, where the modules are dragged around directly. So ask for
+            // exactly that, and get out of the way first - the session drives the mouse itself.
             ConsoleHit console = consoleHit(mouseX, mouseY);
             if (console != null) {
-                PacketDistributor.sendToServer(
-                        new io.github.ondreamqwq.drc.net.ConsoleOpenPacket(
-                                receiverPos, console.pos(), console.socket(), ""));
                 playClick();
+                Minecraft.getInstance().setScreen(null);
+                PacketDistributor.sendToServer(
+                        new io.github.ondreamqwq.drc.net.ConsoleUsePacket(receiverPos, console.pos()));
             }
             return true;
         }
