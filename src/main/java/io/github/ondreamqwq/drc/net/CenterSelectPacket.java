@@ -38,7 +38,7 @@ public record CenterSelectPacket(BlockPos center, BlockPos terminal) implements 
             if (!(player.level().getBlockEntity(packet.center()) instanceof PanelRemoteCenterBlockEntity center)) {
                 return;
             }
-            if (!center.canOperate(player.getUUID()) || !center.coversTerminal(packet.terminal())) {
+            if (!center.canOperate(player) || !center.coversTerminal(packet.terminal())) {
                 return;
             }
             center.setDefaultTerminal(packet.terminal());

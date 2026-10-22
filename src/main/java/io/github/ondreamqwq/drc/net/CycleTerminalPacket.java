@@ -46,7 +46,7 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
             if (player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(packet.center())) > 64.0D * 64.0D) {
                 return;
             }
-            if (!center.canOperate(player.getUUID())) {
+            if (!center.canOperate(player)) {
                 return;
             }
             var terminals = center.terminals();

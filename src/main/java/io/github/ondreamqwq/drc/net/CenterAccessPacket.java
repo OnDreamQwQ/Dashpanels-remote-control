@@ -58,17 +58,17 @@ public record CenterAccessPacket(BlockPos center, byte action, String name, byte
                         true);
                 return;
             }
-            UUID target = parseUuid(packet.uuid());
-            if (target == null) {
-                target = resolve(player, packet.name());
-            }
-            if (target == null) {
+            // Rights are keyed by player name, not by uuid: a name is what the owner types in, it survives
+            // a player never having joined this server, and whether the person at the keyboard really is
+            // that player is already answered by the account system.
+            String target = resolveName(player, packet.uuid(), packet.name());
+            if (target == null || target.isBlank()) {
                 player.displayClientMessage(
                         net.minecraft.network.chat.Component.translatable("gui.dashpanels_remote_control.center.unknown_player",
                                 packet.name()), true);
                 return;
             }
-            if (target.equals(center.owner())) {
+            if (center.owner() != null && target.equalsIgnoreCase(nameOf(player, center.owner()))) {
                 return;
             }
             switch (packet.action()) {
@@ -94,18 +94,38 @@ public record CenterAccessPacket(BlockPos center, byte action, String name, byte
             return null;
         }
     }
-    private static UUID resolve(ServerPlayer player, String name) {
-        if (name == null || name.isBlank()) {
+    /** A typed name wins; a uuid is only there so the screen can talk about players without a name. */
+    private static String resolveName(ServerPlayer player, String rawUuid, String typed) {
+        if (typed != null && !typed.isBlank()) {
+            return canonical(player, typed.trim());
+        }
+        UUID id = parseUuid(rawUuid);
+        if (id == null || player.getServer() == null) {
             return null;
         }
-        if (player.getServer() == null) {
-            return null;
-        }
-        ServerPlayer online = player.getServer().getPlayerList().getPlayerByName(name);
+        ServerPlayer online = player.getServer().getPlayerList().getPlayer(id);
         if (online != null) {
-            return online.getUUID();
+            return online.getGameProfile().getName();
         }
-        Optional<GameProfile> cached = player.getServer().getProfileCache().get(name);
-        return cached.map(GameProfile::getId).orElse(null);
+        return player.getServer().getProfileCache().get(id).map(GameProfile::getName).orElse(id.toString());
+    }
+
+    /** The spelling the account system uses, so "ondream" and "OnDream" are the same entry. */
+    private static String canonical(ServerPlayer player, String name) {
+        if (player.getServer() != null) {
+            ServerPlayer online = player.getServer().getPlayerList().getPlayerByName(name);
+            if (online != null) {
+                return online.getGameProfile().getName();
+            }
+            Optional<GameProfile> cached = player.getServer().getProfileCache().get(name);
+            if (cached.isPresent()) {
+                return cached.get().getName();
+            }
+        }
+        return name;
+    }
+
+    private static String nameOf(ServerPlayer player, UUID id) {
+        return resolveName(player, id.toString(), null);
     }
 }

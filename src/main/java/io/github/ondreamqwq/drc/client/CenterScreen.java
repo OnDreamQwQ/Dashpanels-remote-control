@@ -45,13 +45,14 @@ public class CenterScreen extends Screen {
     private final List<String> tabs = List.of(
             Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
             Component.translatable("gui.dashpanels_remote_control.center.remotes").getString(),
-            Component.translatable("gui.dashpanels_remote_control.center.players").getString(),
-            Component.translatable("gui.dashpanels_remote_control.center.consoles").getString());
+            Component.translatable("gui.dashpanels_remote_control.center.players").getString());
 
     private final List<Row> panelRows = new ArrayList<>();
     private final List<Row> remoteRows = new ArrayList<>();
     private final List<Row> playerRows = new ArrayList<>();
-    private final List<Row> consoleRows = new ArrayList<>();
+
+    /** Remembered across reopenings: handing out a right must not throw the owner back to page one. */
+    private static int lastPage;
 
     private int page;
     private int scroll;
@@ -61,7 +62,7 @@ public class CenterScreen extends Screen {
     private net.minecraft.client.gui.components.EditBox nameBox;
     private int editBoxTop;
 
-    private record Row(String text, String hint, BlockPos panel, int level, String subPath, String uuid) {
+    private record Row(String text, String hint, BlockPos panel, int level, String raw) {
     }
 
     private String ownerName = "";
@@ -69,6 +70,7 @@ public class CenterScreen extends Screen {
     public CenterScreen(BlockPos center, CompoundTag info) {
         super(Component.translatable("gui.dashpanels_remote_control.center.title"));
         this.center = center;
+        this.page = Math.clamp(lastPage, 0, tabs.size() - 1);
         read(info);
     }
 
@@ -80,7 +82,6 @@ public class CenterScreen extends Screen {
         panelRows.clear();
         remoteRows.clear();
         playerRows.clear();
-        consoleRows.clear();
         canOperate = info.getBoolean("canOperate");
         isOwner = info.getBoolean("isOwner");
         selected = -1;
@@ -95,7 +96,9 @@ public class CenterScreen extends Screen {
                     ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
                     : name;
             label = label + "  (" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            panelRows.add(new Row(label, claimed + " panel(s)", pos, -1, null, null));
+            panelRows.add(new Row(label,
+                    Component.translatable("gui.dashpanels_remote_control.center.claimed", claimed).getString(),
+                    pos, -1, name));
             if (one.getBoolean("selected")) {
                 selected = i;
             }
@@ -104,33 +107,35 @@ public class CenterScreen extends Screen {
         ListTag remotes = info.getList("remotes", Tag.TAG_COMPOUND);
         for (int i = 0; i < remotes.size(); i++) {
             CompoundTag one = remotes.getCompound(i);
-            remoteRows.add(new Row(one.getString("name"), one.getBoolean("online") ? "online" : "offline", null, -1, null, null));
+            remoteRows.add(new Row(one.getString("name"),
+                    Component.translatable(one.getBoolean("online")
+                            ? "gui.dashpanels_remote_control.center.online"
+                            : "gui.dashpanels_remote_control.center.offline").getString(),
+                    null, -1, ""));
         }
 
         ownerName = info.getString("owner");
         ListTag access = info.getList("access", Tag.TAG_COMPOUND);
         for (int i = 0; i < access.size(); i++) {
             CompoundTag one = access.getCompound(i);
-            playerRows.add(new Row(one.getString("name"), one.getString("level"), null,
-                    one.getInt("level_id"), null, one.getString("uuid")));
+            int levelId = one.getInt("level_id");
+            playerRows.add(new Row(one.getString("name"),
+                    Component.translatable(levelId == io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity.ACCESS_OPERATE
+                            ? "gui.dashpanels_remote_control.center.level_operate"
+                            : "gui.dashpanels_remote_control.center.level_edit").getString(),
+                    null, levelId, one.getString("name")));
         }
-        playerRows.addFirst(new Row(ownerName, "owner", null, -1, null, null));
+        playerRows.addFirst(new Row(ownerName,
+                Component.translatable("gui.dashpanels_remote_control.center.level_owner").getString(),
+                null, -1, ""));
 
-        ListTag consoles = info.getList("consoles", Tag.TAG_COMPOUND);
-        for (int i = 0; i < consoles.size(); i++) {
-            CompoundTag one = consoles.getCompound(i);
-            BlockPos pos = new BlockPos(one.getInt("x"), one.getInt("y"), one.getInt("z"));
-            String label = one.getString("label");
-            String where = "(" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-            consoleRows.add(new Row(label, where, pos, one.getInt("socket"), one.getString("sub_path"), null));
-        }
+
     }
 
     private List<Row> rows() {
         return switch (page) {
             case 1 -> remoteRows;
             case 2 -> playerRows;
-            case 3 -> consoleRows;
             default -> panelRows;
         };
     }
@@ -234,9 +239,10 @@ public class CenterScreen extends Screen {
         graphics.drawString(font, label, bx + (bw - font.width(label)) / 2, by + 2, TEXT, false);
     }
 
-    private void sendAccess(byte action, String name, int level, String uuid) {
+    private void sendAccess(byte action, String name, int level) {
+        // Rights are stored by name, so the screen never has to send an uuid it cannot resolve.
         PacketDistributor.sendToServer(
-                new io.github.ondreamqwq.drc.net.CenterAccessPacket(center, action, name, (byte) level, uuid));
+                new io.github.ondreamqwq.drc.net.CenterAccessPacket(center, action, name, (byte) level, ""));
         click();
     }
 
@@ -248,7 +254,7 @@ public class CenterScreen extends Screen {
         if (name.isEmpty()) {
             return;
         }
-        sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.ADD, name, level, "");
+        sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.ADD, name, level);
         nameBox.setValue("");
     }
 
@@ -266,7 +272,7 @@ public class CenterScreen extends Screen {
                 int ry = y + ROW_TOP + i * ROW_HEIGHT;
                 if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
                     Row row = panelRows.get(index);
-                    TerminalRenameScreen.open(row.panel(), "");
+                    TerminalRenameScreen.open(row.panel(), row.raw());
                     return;
                 }
             }
@@ -286,10 +292,10 @@ public class CenterScreen extends Screen {
                 return;
             }
             if (button == 1) {
-                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.REMOVE, row.text(), 0, row.uuid());
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.REMOVE, row.raw(), 0);
             } else {
                 int wanted = row.level() == 0 ? 1 : 0;
-                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.SET_LEVEL, row.text(), wanted, row.uuid());
+                sendAccess(io.github.ondreamqwq.drc.net.CenterAccessPacket.SET_LEVEL, row.raw(), wanted);
             }
             return;
         }
@@ -305,6 +311,7 @@ public class CenterScreen extends Screen {
             int ty = y + 20;
             if (mouseX >= tx && mouseX <= tx + tabWidth && mouseY >= ty && mouseY <= ty + TAB_HEIGHT) {
                 page = i;
+                lastPage = i;
                 scroll = 0;
                 click();
                 return true;
@@ -326,27 +333,6 @@ public class CenterScreen extends Screen {
                         selected = index;
                         PacketDistributor.sendToServer(
                                 new io.github.ondreamqwq.drc.net.CenterSelectPacket(center, panel));
-                    }
-                    return true;
-                }
-            }
-        }
-        if (page == 3) {
-            int visible = (ROW_BOTTOM - ROW_TOP) / ROW_HEIGHT;
-            for (int i = 0; i < visible; i++) {
-                int index = i + scroll;
-                if (index >= consoleRows.size()) {
-                    break;
-                }
-                int ry = y + ROW_TOP + i * ROW_HEIGHT;
-                if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
-                    click();
-                    Row row = consoleRows.get(index);
-                    if (row.panel() != null && canOperate) {
-                        // Same as clicking a console in the remote: start operating it, not open a menu.
-                        Minecraft.getInstance().setScreen(null);
-                        PacketDistributor.sendToServer(
-                                new io.github.ondreamqwq.drc.net.ConsoleUsePacket(center, row.panel()));
                     }
                     return true;
                 }

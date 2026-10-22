@@ -21,8 +21,8 @@ public final class CenterInfo {
         }
         CompoundTag info = new CompoundTag();
         info.putString("network", io.github.ondreamqwq.drc.content.Networks.shortId(center.networkId()));
-        info.putBoolean("canEdit", center.canEdit(player.getUUID()));
-        info.putBoolean("canOperate", center.canOperate(player.getUUID()));
+        info.putBoolean("canEdit", center.canEdit(player));
+        info.putBoolean("canOperate", center.canOperate(player));
         info.putBoolean("isOwner", center.owner() != null && center.owner().equals(player.getUUID()));
 
         BlockPos picked = center.defaultTerminal();
@@ -52,30 +52,13 @@ public final class CenterInfo {
         }
         info.put("remotes", remotes);
 
-        ListTag consoles = new ListTag();
-        for (io.github.ondreamqwq.drc.compat.AeroworksCompat.Node node
-                : io.github.ondreamqwq.drc.compat.AeroworksCompat.nodes(level, center.consoles())) {
-            CompoundTag one = new CompoundTag();
-            one.putInt("x", node.console().getX());
-            one.putInt("y", node.console().getY());
-            one.putInt("z", node.console().getZ());
-            one.putInt("socket", node.socket());
-            one.putString("sub_path", node.subPath());
-            one.putString("label", node.label());
-            consoles.add(one);
-        }
-        info.put("consoles", consoles);
-
         String ownerName = center.owner() == null ? "-" : nameOf(level, center.owner());
         info.putString("owner", ownerName);
 
         ListTag access = new ListTag();
-        center.accessList().forEach((uuid, levelOfAccess) -> {
+        center.accessList().forEach((name, levelOfAccess) -> {
             CompoundTag one = new CompoundTag();
-            one.putString("name", nameOf(level, uuid));
-            one.putString("uuid", uuid.toString());
-            one.putString("level", levelOfAccess == PanelRemoteCenterBlockEntity.ACCESS_OPERATE
-                    ? "can operate" : "can edit");
+            one.putString("name", name);
             one.putInt("level_id", levelOfAccess);
             access.add(one);
         });

@@ -62,7 +62,7 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
 
     private UUID networkId = Networks.fresh();
     private UUID owner;
-    private final Map<UUID, Integer> access = new LinkedHashMap<>();
+    private final Map<String, Integer> access = new LinkedHashMap<>();
     private final List<Remote> remotes = new ArrayList<>();
 
     /** Every panel served by this center, nearest first. */
@@ -120,34 +120,54 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         }
     }
 
-    public Map<UUID, Integer> accessList() {
+    public Map<String, Integer> accessList() {
         return Map.copyOf(access);
     }
 
-    public void grant(UUID player, int accessLevel) {
-        access.put(player, accessLevel);
+    public void grant(String name, int accessLevel) {
+        access.put(name.toLowerCase(java.util.Locale.ROOT), accessLevel);
         setChanged();
     }
 
-    public void revoke(UUID player) {
-        if (access.remove(player) != null) {
+    public void revoke(String name) {
+        if (access.remove(name.toLowerCase(java.util.Locale.ROOT)) != null) {
             setChanged();
         }
     }
 
     public boolean canEdit(UUID player) {
-        return player != null && (player.equals(owner) || access.containsKey(player));
+        return canEdit(player, null);
+    }
+
+    public boolean canEdit(UUID player, String name) {
+        if (player != null && player.equals(owner)) {
+            return true;
+        }
+        return name != null && access.containsKey(name.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** Names are the key, so an offline player still keeps their level after a rename of their uuid. */
+    public boolean canEdit(net.minecraft.world.entity.player.Player player) {
+        return canEdit(player.getUUID(), player.getGameProfile().getName());
     }
 
     public boolean canOperate(UUID player) {
-        if (player == null) {
-            return false;
-        }
-        if (player.equals(owner)) {
+        return canOperate(player, null);
+    }
+
+    public boolean canOperate(UUID player, String name) {
+        if (player != null && player.equals(owner)) {
             return true;
         }
-        Integer level = access.get(player);
+        if (name == null) {
+            return false;
+        }
+        Integer level = access.get(name.toLowerCase(java.util.Locale.ROOT));
         return level != null && level == ACCESS_OPERATE;
+    }
+
+    public boolean canOperate(net.minecraft.world.entity.player.Player player) {
+        return canOperate(player.getUUID(), player.getGameProfile().getName());
     }
 
     public void recordRemote(ServerPlayer player) {
@@ -327,9 +347,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
 
     private ListTag writeAccess() {
         ListTag list = new ListTag();
-        for (Map.Entry<UUID, Integer> entry : access.entrySet()) {
+        for (Map.Entry<String, Integer> entry : access.entrySet()) {
             CompoundTag one = new CompoundTag();
-            one.putString(TAG_PLAYER, entry.getKey().toString());
+            one.putString(TAG_PLAYER, entry.getKey());
             one.putInt(TAG_LEVEL, entry.getValue());
             list.add(one);
         }
@@ -341,9 +361,9 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         ListTag list = tag.getList(TAG_ACCESS, Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) {
             CompoundTag one = list.getCompound(i);
-            UUID player = parseUuid(one.getString(TAG_PLAYER));
-            if (player != null) {
-                access.put(player, one.getInt(TAG_LEVEL));
+            String player = one.getString(TAG_PLAYER);
+            if (!player.isBlank() && parseUuid(player) == null) {
+                access.put(player.toLowerCase(java.util.Locale.ROOT), one.getInt(TAG_LEVEL));
             }
         }
     }

@@ -46,15 +46,24 @@ public record ConsoleUsePacket(BlockPos center, BlockPos console) implements Cus
             if (player.distanceToSqr(Vec3.atCenterOf(packet.center())) > 64.0D * 64.0D) {
                 return;
             }
-            if (!center.canOperate(player.getUUID())) {
+            if (!center.canOperate(player)) {
                 return;
             }
             if (!center.consoles().contains(packet.console())) {
                 return;
             }
-            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                AeroworksCompat.startUsing(serverPlayer, packet.console());
+            if (!(player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) {
+                return;
             }
+            // The control session is a world session: it aims with the player's own eyes, so starting it
+            // from far away only makes the HUD blink and die. Say why instead of doing nothing.
+            if (player.distanceToSqr(Vec3.atCenterOf(packet.console())) > 24.0D * 24.0D) {
+                player.displayClientMessage(
+                        net.minecraft.network.chat.Component.translatable(
+                                "gui.dashpanels_remote_control.remote.console_too_far"), true);
+                return;
+            }
+            AeroworksCompat.startUsing(serverPlayer, packet.console());
         });
     }
 }

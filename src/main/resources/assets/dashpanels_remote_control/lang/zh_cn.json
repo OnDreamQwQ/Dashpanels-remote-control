@@ -44,5 +44,13 @@
   "gui.dashpanels_remote_control.terminal.title": "重命名终端",
   "gui.dashpanels_remote_control.terminal.unnamed": "未命名面板",
   "item.dashpanels_remote_control.panel_remote": "面板遥控器",
-  "itemGroup.dashpanels_remote_control": "面板遥控"
+  "itemGroup.dashpanels_remote_control": "面板遥控",
+  "gui.dashpanels_remote_control.center.claimed": "已认领 %s 块面板",
+  "gui.dashpanels_remote_control.center.online": "在线",
+  "gui.dashpanels_remote_control.center.offline": "离线",
+  "gui.dashpanels_remote_control.remote.console_too_far": "离控制台太远：走过去再点一次",
+  "gui.dashpanels_remote_control.center.level_edit": "仅修改",
+  "gui.dashpanels_remote_control.center.level_owner": "所有者",
+  "gui.dashpanels_remote_control.center.level_operate": "可操作",
+  "gui.dashpanels_remote_control.center.rename_hint": "右键终端改名"
 }

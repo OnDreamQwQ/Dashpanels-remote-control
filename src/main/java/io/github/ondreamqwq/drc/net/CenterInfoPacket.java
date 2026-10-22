@@ -2,6 +2,8 @@ package io.github.ondreamqwq.drc.net;
 
 import io.github.ondreamqwq.drc.DrcMod;
 import io.github.ondreamqwq.drc.client.CenterScreen;
+import io.github.ondreamqwq.drc.client.PanelRemoteScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -29,6 +31,14 @@ public record CenterInfoPacket(BlockPos center, CompoundTag info) implements Cus
     }
 
     public static void handle(CenterInfoPacket packet, IPayloadContext context) {
-        context.enqueueWork(() -> CenterScreen.open(packet.center(), packet.info()));
+        context.enqueueWork(() -> {
+            // The remote asks for terminal switches while it is open, and the server answers with a fresh
+            // info tag. Opening the center from that answer would shove the remote away - so only the
+            // center's own screen takes it.
+            if (Minecraft.getInstance().screen instanceof PanelRemoteScreen) {
+                return;
+            }
+            CenterScreen.open(packet.center(), packet.info());
+        });
     }
 }

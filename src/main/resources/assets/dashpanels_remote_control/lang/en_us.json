@@ -44,5 +44,13 @@
   "gui.dashpanels_remote_control.terminal.title": "Rename terminal",
   "gui.dashpanels_remote_control.terminal.unnamed": "Unnamed panel",
   "item.dashpanels_remote_control.panel_remote": "Panel Remote",
-  "itemGroup.dashpanels_remote_control": "Panel Remote"
+  "itemGroup.dashpanels_remote_control": "Panel Remote",
+  "gui.dashpanels_remote_control.center.claimed": "claims %s panel(s)",
+  "gui.dashpanels_remote_control.center.online": "online",
+  "gui.dashpanels_remote_control.center.offline": "offline",
+  "gui.dashpanels_remote_control.remote.console_too_far": "too far from the console - walk over and click again",
+  "gui.dashpanels_remote_control.center.level_edit": "can edit",
+  "gui.dashpanels_remote_control.center.level_owner": "owner",
+  "gui.dashpanels_remote_control.center.level_operate": "can operate",
+  "gui.dashpanels_remote_control.center.rename_hint": "right click a terminal to rename it"
 }

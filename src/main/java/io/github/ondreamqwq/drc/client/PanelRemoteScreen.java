@@ -543,6 +543,34 @@ public class PanelRemoteScreen extends Screen {
         pose.mulPose(mounted(reference).invert());
     }
 
+    /**
+     * The panel the page takes its orientation from: the one nearest the terminal that owns the page.
+     *
+     * <p>A terminal faces its panels, so that panel's front is the side the player wants to see. Picking
+     * the first panel of the page instead would show the back whenever the nearest one happened to come
+     * later in the list.
+     */
+    private AbstractPanelBlockEntity referencePanel(List<AbstractPanelBlockEntity> onPage) {
+        if (onPage.isEmpty()) {
+            return null;
+        }
+        Page current = currentPage();
+        BlockPos terminal = current == null ? null : current.terminal();
+        if (terminal == null) {
+            return onPage.get(0);
+        }
+        AbstractPanelBlockEntity best = onPage.get(0);
+        double bestDistance = Double.MAX_VALUE;
+        for (AbstractPanelBlockEntity panel : onPage) {
+            double distance = panel.getBlockPos().distSqr(terminal);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = panel;
+            }
+        }
+        return best;
+    }
+
     /** Where a panel sits relative to the middle of the assembly, in blocks. */
     private void panelOffset(PoseStack pose, BlockPos pos) {
         pose.translate((float) (pos.getX() - centreX), (float) (pos.getY() - centreY),
