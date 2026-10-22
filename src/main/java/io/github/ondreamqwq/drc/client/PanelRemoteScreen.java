@@ -473,7 +473,8 @@ public class PanelRemoteScreen extends Screen {
      * way would spin the other way or show its edge.
      */
     private void assemblyPose(PoseStack pose) {
-        AbstractPanelBlockEntity reference = pagePanels().isEmpty() ? null : pagePanels().get(0);
+        List<AbstractPanelBlockEntity> onPage = pagePanels();
+        AbstractPanelBlockEntity reference = onPage.isEmpty() ? null : onPage.get(0);
         if (DrcConfig.perspective()) {
             // The base of the GUI pose already sits far back (the game pushes the whole 2D layer down the
             // z axis), and a picking pose starts at zero. Subtracting the base keeps the assembly at the
@@ -494,13 +495,23 @@ public class PanelRemoteScreen extends Screen {
                 (float) (pos.getZ() - centreZ));
     }
 
+    /**
+     * The mounting rotation of the page.
+     *
+     * <p>A page can hold consoles only - an Aeroworks console is not a Dashpanels panel, so there is no
+     * panel to borrow an orientation from, and a page whose panels are still loading has none either.
+     * In that case the neutral orientation is used instead of failing the whole screen.
+     */
     private Quaternionf mounted(AbstractPanelBlockEntity panel) {
-        Direction facing = facing(panel);
-        float blockYaw = Mth.wrapDegrees(facing.toYRot() + 180.0F + view[0]);
-        float pitch = panel instanceof WallPanelBlockEntity ? 90.0F
-                : panel instanceof CeilingPanelBlockEntity ? 135.0F
-                : 0.0F;
-        pitch += view[1];
+        float blockYaw = view[0];
+        float pitch = view[1];
+        if (panel != null) {
+            Direction facing = facing(panel);
+            blockYaw = Mth.wrapDegrees(facing.toYRot() + 180.0F + view[0]);
+            pitch += panel instanceof WallPanelBlockEntity ? 90.0F
+                    : panel instanceof CeilingPanelBlockEntity ? 135.0F
+                    : 0.0F;
+        }
         return new Quaternionf()
                 .rotateY((float) Math.toRadians(blockYaw))
                 .rotateX((float) Math.toRadians(pitch));
@@ -833,6 +844,9 @@ public class PanelRemoteScreen extends Screen {
     }
 
     private static Direction facing(AbstractPanelBlockEntity panel) {
+        if (panel == null) {
+            return Direction.NORTH;
+        }
         BlockState state = panel.getBlockState();
         return state.hasProperty(PanelBlock.FACING) ? state.getValue(PanelBlock.FACING) : Direction.NORTH;
     }
