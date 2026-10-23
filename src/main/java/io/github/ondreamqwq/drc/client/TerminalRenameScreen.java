@@ -21,18 +21,33 @@ public class TerminalRenameScreen extends Screen {
     private static final int WIDTH = 220;
     private static final int HEIGHT = 76;
 
+    private final Screen parent;
     private final BlockPos terminal;
     private final String current;
+    private final String renamed;
     private EditBox nameBox;
 
-    private TerminalRenameScreen(BlockPos terminal, String current) {
+    private TerminalRenameScreen(Screen parent, BlockPos terminal, String current) {
         super(Component.translatable("gui.dashpanels_remote_control.terminal.title"));
+        this.parent = parent;
         this.terminal = terminal;
         this.current = current;
+        this.renamed = current;
+    }
+
+    /**
+     * Opens the box on top of {@code parent} and goes back to it when done.
+     *
+     * <p>Closing used to drop the player into the world, which made renaming from the center's page feel
+     * like the whole center screen had been dismissed - cancelling especially so, since nothing had
+     * changed and there was no reason to lose the page.
+     */
+    public static void open(Screen parent, BlockPos terminal, String current) {
+        Minecraft.getInstance().setScreen(new TerminalRenameScreen(parent, terminal, current));
     }
 
     public static void open(BlockPos terminal, String current) {
-        Minecraft.getInstance().setScreen(new TerminalRenameScreen(terminal, current));
+        open(Minecraft.getInstance().screen, terminal, current);
     }
 
     @Override
@@ -66,7 +81,17 @@ public class TerminalRenameScreen extends Screen {
             name = name.substring(0, 32);
         }
         PacketDistributor.sendToServer(new RenameTerminalPacket(terminal, name));
+        if (parent instanceof CenterScreen center) {
+            center.setPendingName(terminal, name);
+        }
         onClose();
+    }
+
+    @Override
+    public void onClose() {
+        // Back to whatever opened the box: the center keeps its page and scroll position, because the
+        // instance is reused instead of being rebuilt from a fresh packet.
+        Minecraft.getInstance().setScreen(parent);
     }
 
     @Override

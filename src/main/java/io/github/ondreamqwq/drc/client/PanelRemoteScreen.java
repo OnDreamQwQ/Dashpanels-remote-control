@@ -186,6 +186,14 @@ public class PanelRemoteScreen extends Screen {
     /** True when the hold was grabbed by the scroll wheel rather than by a held mouse button. */
     private boolean scrollMode;
 
+    /**
+     * True while an Aeroworks console session is being driven from this screen.
+     *
+     * <p>The session pauses its own input whenever a screen is open, so the drags, wheel notches and key
+     * presses are handed to it by hand. That is what makes a console usable from far away.
+     */
+    private boolean consoleDriving;
+
     /** Which panel the camera is centred on; null keeps the whole page in the middle. */
     private BlockPos focusPos;
 
@@ -261,56 +269,79 @@ public class PanelRemoteScreen extends Screen {
     /** One page per terminal, in the order the center lists them; panels no terminal claimed get one. */
     private List<Page> buildPages(Level level, PanelRemoteCenterBlockEntity receiver) {
         List<Page> out = new ArrayList<>();
-        Set<BlockPos> seenPanels = new HashSet<>();
-        Set<BlockPos> seenConsoles = new HashSet<>();
+        // Every terminal on a network claims every panel on that network, so the claims overlap. Giving
+        // each panel to the nearest terminal turns the overlapping claims into one page per terminal.
+        List<BlockPos> terminals = new ArrayList<>();
         for (BlockPos terminalPos : receiver.terminals()) {
-            if (!(level.getBlockEntity(terminalPos)
-                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal)) {
+            if (level.getBlockEntity(terminalPos)
+                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity) {
+                terminals.add(terminalPos);
+            }
+        }
+        Map<BlockPos, List<BlockPos>> panelsByTerminal = new HashMap<>();
+        Map<BlockPos, List<BlockPos>> consolesByTerminal = new HashMap<>();
+        for (BlockPos pos : terminals) {
+            panelsByTerminal.put(pos, new ArrayList<>());
+            consolesByTerminal.put(pos, new ArrayList<>());
+        }
+        List<BlockPos> loosePanels = new ArrayList<>();
+        for (BlockPos panel : receiver.panels()) {
+            BlockPos owner = nearest(panel, terminals);
+            if (owner == null) {
+                loosePanels.add(panel);
+            } else {
+                panelsByTerminal.get(owner).add(panel);
+            }
+        }
+        List<BlockPos> looseConsoles = new ArrayList<>();
+        for (BlockPos console : receiver.consoles()) {
+            BlockPos owner = nearest(console, terminals);
+            if (owner == null) {
+                looseConsoles.add(console);
+            } else {
+                consolesByTerminal.get(owner).add(console);
+            }
+        }
+        for (BlockPos terminalPos : terminals) {
+            List<BlockPos> owned = panelsByTerminal.get(terminalPos);
+            List<BlockPos> ownedConsoles = consolesByTerminal.get(terminalPos);
+            if (owned.isEmpty() && ownedConsoles.isEmpty()) {
                 continue;
             }
-            String name = terminal.name().trim();
+            String name = "";
+            if (level.getBlockEntity(terminalPos)
+                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {
+                name = terminal.name().trim();
+            }
             if (name.isEmpty()) {
                 name = Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString();
             }
-            List<BlockPos> owned = new ArrayList<>();
-            for (BlockPos pos : terminal.panels()) {
-                if (seenPanels.add(pos)) {
-                    owned.add(pos);
-                }
-            }
-            List<BlockPos> consolesOwned = new ArrayList<>();
-            for (BlockPos pos : terminal.consoles()) {
-                if (seenConsoles.add(pos)) {
-                    consolesOwned.add(pos);
-                }
-            }
-            if (!owned.isEmpty() || !consolesOwned.isEmpty()) {
-                out.add(new Page(terminalPos, name, List.copyOf(owned), List.copyOf(consolesOwned)));
-            }
+            out.add(new Page(terminalPos, name, List.copyOf(owned), List.copyOf(ownedConsoles)));
         }
-        List<BlockPos> loose = new ArrayList<>();
-        for (BlockPos pos : receiver.panels()) {
-            if (seenPanels.add(pos)) {
-                loose.add(pos);
-            }
-        }
-        if (!loose.isEmpty()) {
+        if (!loosePanels.isEmpty()) {
             out.add(new Page(null,
                     Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
-                    List.copyOf(loose), List.of()));
-        }
-        List<BlockPos> looseConsoles = new ArrayList<>();
-        for (BlockPos pos : receiver.consoles()) {
-            if (seenConsoles.add(pos)) {
-                looseConsoles.add(pos);
-            }
+                    List.copyOf(loosePanels), List.of()));
         }
         if (!looseConsoles.isEmpty()) {
             out.add(new Page(null,
-                    Component.translatable("gui.dashpanels_remote_control.center.consoles").getString(),
+                    Component.translatable("gui.dashpanels_remote_control.center.terminals").getString(),
                     List.of(), List.copyOf(looseConsoles)));
         }
         return List.copyOf(out);
+    }
+
+    private static BlockPos nearest(BlockPos target, List<BlockPos> candidates) {
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos candidate : candidates) {
+            double distance = candidate.distSqr(target);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+        return best;
     }
 
 
@@ -1006,9 +1037,11 @@ public class PanelRemoteScreen extends Screen {
                 graphics.pose().popPose();
             }
         }
-        Component hint = holding != null
-                ? Component.translatable("gui.dashpanels_remote_control.remote.holding")
-                : Component.translatable("gui.dashpanels_remote_control.remote.hint");
+        Component hint = consoleDriving
+                ? Component.translatable("gui.dashpanels_remote_control.remote.console_driving")
+                : holding != null
+                        ? Component.translatable("gui.dashpanels_remote_control.remote.holding")
+                        : Component.translatable("gui.dashpanels_remote_control.remote.hint");
         graphics.drawCenteredString(font, hint, width / 2, height - 16, HINT_COLOR);
         endTopPass(graphics);
     }
@@ -1309,6 +1342,11 @@ public class PanelRemoteScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+        // The session can end on its own (the console was broken, or another player took it over), so the
+        // screen keeps checking instead of assuming it is still driving anything.
+        if (consoleDriving && !AeroworksCompat.sessionActive()) {
+            consoleDriving = false;
+        }
         // Safety net: if the release never reaches the screen (focus loss, a screen switch, our own
         // consumption order) drop the module as soon as the physical button is up again, instead of
         // leaving it held down until something else happens to clear it.
@@ -1322,6 +1360,15 @@ public class PanelRemoteScreen extends Screen {
             active.tick();
         }
         enforceCursor();
+    }
+
+    /** Leaves the console session, if one is running. */
+    private void endConsole() {
+        if (!consoleDriving) {
+            return;
+        }
+        consoleDriving = false;
+        AeroworksCompat.requestExit();
     }
 
     /**
@@ -1411,12 +1458,13 @@ public class PanelRemoteScreen extends Screen {
             }
             // No panel module there - the console is the other clickable thing. In Aeroworks a console is
             // not operated through a menu: right clicking it marks you as its user and the client turns
-            // that into the control session, where the modules are dragged around directly. So ask for
-            // exactly that, and get out of the way first - the session drives the mouse itself.
+            // that into the control session, where the modules are dragged around directly. Their session
+            // normally reads the mouse from the game itself; while our screen stays open it pauses that,
+            // and we feed it instead - which is what lets a remote work from across the base.
             ConsoleHit console = consoleHit(mouseX, mouseY);
             if (console != null) {
                 playClick();
-                Minecraft.getInstance().setScreen(null);
+                consoleDriving = true;
                 PacketDistributor.sendToServer(
                         new io.github.ondreamqwq.drc.net.ConsoleUsePacket(receiverPos, console.pos()));
             }
@@ -1436,6 +1484,12 @@ public class PanelRemoteScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (consoleDriving) {
+            // The console session is ours to drive now: a drag is a turn of whatever module it bound to
+            // the mouse, not a turn of the camera.
+            AeroworksCompat.feedDelta(dragX, dragY);
+            return true;
+        }
         if (holding != null) {
             if (pinned) {
                 // The pinned pointer feeds the interaction from its own poll, once per frame; letting the
@@ -1491,6 +1545,16 @@ public class PanelRemoteScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (consoleDriving) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                // First Escape leaves the console, second closes the screen.
+                endConsole();
+                return true;
+            }
+            if (AeroworksCompat.feedKey(keyCode, GLFW.GLFW_PRESS)) {
+                return true;
+            }
+        }
         if (holding != null) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
                 endHold();
@@ -1524,6 +1588,9 @@ public class PanelRemoteScreen extends Screen {
 
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        if (consoleDriving && AeroworksCompat.feedKey(keyCode, GLFW.GLFW_RELEASE)) {
+            return true;
+        }
         if (holding != null) {
             ModuleHoldInteraction<?> active = activeHold();
             if (active != null && active.keyRelease(keyCode, scanCode, modifiers)) {
@@ -1737,12 +1804,18 @@ public class PanelRemoteScreen extends Screen {
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
 
-        // Ctrl+wheel zooms; Shift+wheel walks the panels; a bare wheel over a module adjusts it, the same
-        // way it does on the panel.
+        // Ctrl+wheel zooms; Shift+wheel walks the terminals; a bare wheel over a module adjusts it, the
+        // same way it does on the panel.
         if (hasControlDown()) {
             zoom = Mth.clamp(zoom + (float) scrollY * ZOOM_STEP, MIN_ZOOM, MAX_ZOOM);
             layout();
             return true;
+        }
+        if (consoleDriving) {
+            // A console module bound to the wheel gets it, the way it would in the world session.
+            if (AeroworksCompat.feedWheel(scrollY)) {
+                return true;
+            }
         }
         if (hasShiftDown()) {
             turnPage(scrollY > 0.0D ? 1 : -1);

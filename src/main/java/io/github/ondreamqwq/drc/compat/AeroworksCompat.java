@@ -81,6 +81,38 @@ public final class AeroworksCompat {
     }
 
     /**
+     * Whether this player is currently in an Aeroworks console session.
+     *
+     * <p>Their session normally reads the mouse and the keyboard straight from the game; while a screen
+     * of ours is open it pauses that and waits to be fed, which is what makes remote operation possible.
+     */
+    public static boolean sessionActive() {
+        return isLoaded() && Hooks.sessionActive();
+    }
+
+    /** Feeds a mouse movement to whatever console module is bound to a mouse axis. */
+    public static boolean feedDelta(double dx, double dy) {
+        return isLoaded() && Hooks.feedDelta(dx, dy);
+    }
+
+    /** Feeds one scroll notch; returns whether the session consumed it. */
+    public static boolean feedWheel(double delta) {
+        return isLoaded() && Hooks.feedWheel(delta);
+    }
+
+    /** Feeds a key press to the session; returns whether it was consumed. */
+    public static boolean feedKey(int glfwKey, int action) {
+        return isLoaded() && Hooks.feedKey(glfwKey, action);
+    }
+
+    /** Leaves the console session. */
+    public static void requestExit() {
+        if (isLoaded()) {
+            Hooks.requestExit();
+        }
+    }
+
+    /**
      * Every block that makes up the console at {@code pos}: the console itself, its desk, and any
      * neighbour belonging to the same row. Without this the desk stays behind and the console looks cut.
      */
@@ -346,6 +378,39 @@ public final class AeroworksCompat {
                 return false;
             }
             return true;
+        }
+
+        static boolean sessionActive() {
+            return com.mred231.aeroworks.content.controls.console.ConsoleControlClient.isActive();
+        }
+
+        static boolean feedDelta(double dx, double dy) {
+            if (!sessionActive()) {
+                return false;
+            }
+            com.mred231.aeroworks.content.controls.console.ConsoleControlClient.feedMouseDelta(dx, dy);
+            return true;
+        }
+
+        static boolean feedWheel(double delta) {
+            if (!sessionActive()) {
+                return false;
+            }
+            return com.mred231.aeroworks.content.controls.console.ConsoleControlClient.feedScroll(delta);
+        }
+
+        static boolean feedKey(int glfwKey, int action) {
+            if (!sessionActive()) {
+                return false;
+            }
+            com.mojang.blaze3d.platform.InputConstants.Key key =
+                    com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM.getOrCreate(glfwKey);
+            return com.mred231.aeroworks.content.controls.console.ConsoleControlClient.handleKey(
+                    key, action != org.lwjgl.glfw.GLFW.GLFW_RELEASE);
+        }
+
+        static void requestExit() {
+            com.mred231.aeroworks.content.controls.console.ConsoleControlClient.requestExit();
         }
     }
 }

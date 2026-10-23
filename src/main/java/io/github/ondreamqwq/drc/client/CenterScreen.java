@@ -86,6 +86,26 @@ public class CenterScreen extends Screen {
         net.minecraft.client.Minecraft.getInstance().setScreen(new CenterScreen(center, info));
     }
 
+    /**
+     * Shows a name right after it is typed, without waiting for the server's round trip.
+     *
+     * <p>The rename box returns to this same instance, so the page and the scroll position survive; the
+     * row is patched in place and the next server update simply confirms it.
+     */
+    public void setPendingName(BlockPos terminal, String name) {
+        String label = name.trim().isEmpty()
+                ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
+                : name.trim();
+        String shown = label + "  (" + terminal.getX() + ", " + terminal.getY() + ", " + terminal.getZ() + ")";
+        for (int i = 0; i < panelRows.size(); i++) {
+            Row row = panelRows.get(i);
+            if (terminal.equals(row.panel())) {
+                panelRows.set(i, new Row(shown, row.hint(), row.panel(), row.level(), name.trim()));
+                return;
+            }
+        }
+    }
+
     private void read(CompoundTag info) {
         panelRows.clear();
         remoteRows.clear();

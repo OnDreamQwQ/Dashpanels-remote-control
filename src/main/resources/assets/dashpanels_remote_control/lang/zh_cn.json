@@ -53,5 +53,6 @@
   "gui.dashpanels_remote_control.center.level_owner": "所有者",
   "gui.dashpanels_remote_control.center.level_operate": "可操作",
   "gui.dashpanels_remote_control.center.rename_hint": "右键终端改名",
-  "gui.dashpanels_remote_control.terminal.renamed": "已重命名为 %s"
+  "gui.dashpanels_remote_control.terminal.renamed": "已重命名为 %s",
+  "gui.dashpanels_remote_control.remote.console_driving": "控制台中 · 拖动 / 滚轮 / 按键 · ESC 退出"
 }
