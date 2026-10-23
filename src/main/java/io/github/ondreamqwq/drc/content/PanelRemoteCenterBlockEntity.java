@@ -280,6 +280,47 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return List.copyOf(out);
     }
 
+    /**
+     * Only the terminals that actually put something on screen.
+     *
+     * <p>{@link #rescanTerminals} drops terminals whose block is gone. That is not enough: a physics
+     * structure dropped into the void takes its panels with it while the terminal block can survive, or
+     * the panels end up in a chunk that is no longer there. Such a terminal has nothing to draw, so the
+     * wheel must not stop on it. A terminal counts here only when it is the nearest terminal of a live
+     * panel or console.
+     */
+    public List<BlockPos> servingTerminals(ServerLevel level) {
+        List<BlockPos> all = terminals(level, worldPosition);
+        if (all.isEmpty()) {
+            return all;
+        }
+        List<BlockPos> feeding = new ArrayList<>(servedPanels(level));
+        feeding.addAll(servedConsoles(level, all));
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos terminal : all) {
+            for (BlockPos target : feeding) {
+                if (terminal.equals(nearest(target, all))) {
+                    out.add(terminal);
+                    break;
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static BlockPos nearest(BlockPos target, List<BlockPos> candidates) {
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (BlockPos candidate : candidates) {
+            double distance = candidate.distSqr(target);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
     /** The consoles the terminals of this network can reach, deduplicated. */
     private static List<BlockPos> servedConsoles(ServerLevel level, List<BlockPos> terminals) {
         java.util.Set<BlockPos> out = new java.util.LinkedHashSet<>();
