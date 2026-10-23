@@ -56,7 +56,6 @@ public class CenterScreen extends Screen {
 
     private int page;
     private int scroll;
-    private int selected = -1;
     private boolean canOperate;
     private boolean isOwner;
     private net.minecraft.client.gui.components.EditBox nameBox;
@@ -93,7 +92,6 @@ public class CenterScreen extends Screen {
         playerRows.clear();
         canOperate = info.getBoolean("canOperate");
         isOwner = info.getBoolean("isOwner");
-        selected = -1;
 
         ListTag panels = info.getList("terminals", Tag.TAG_COMPOUND);
         for (int i = 0; i < panels.size(); i++) {
@@ -108,9 +106,6 @@ public class CenterScreen extends Screen {
             panelRows.add(new Row(label,
                     Component.translatable("gui.dashpanels_remote_control.center.claimed", claimed).getString(),
                     pos, -1, name));
-            if (one.getBoolean("selected")) {
-                selected = i;
-            }
         }
 
         ListTag remotes = info.getList("remotes", Tag.TAG_COMPOUND);
@@ -189,11 +184,8 @@ public class CenterScreen extends Screen {
                 int ry = y + ROW_TOP + i * ROW_HEIGHT;
                 boolean hovered = mouseX >= x + 4 && mouseX <= x + WIDTH - 4
                         && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1;
-                int fill = index == selected ? ROW_PICKED : hovered ? ROW_HOVER : ROW_IDLE;
+                int fill = hovered ? ROW_HOVER : ROW_IDLE;
                 graphics.fill(x + 4, ry, x + WIDTH - 4, ry + ROW_HEIGHT - 1, fill);
-                if (index == selected) {
-                    graphics.renderOutline(x + 4, ry, WIDTH - 8, ROW_HEIGHT - 1, ACCENT);
-                }
                 graphics.drawString(font, row.text(), x + 10, ry + 4, TEXT, false);
                 if (row.hint() != null) {
                     int hintWidth = font.width(row.hint());
@@ -349,12 +341,7 @@ public class CenterScreen extends Screen {
                         }
                         return true;
                     }
-                    if (panel != null && canOperate) {
-                        selected = index;
-                        PacketDistributor.sendToServer(
-                                new io.github.ondreamqwq.drc.net.CenterSelectPacket(center, panel, true));
-                    }
-                    return true;
+                                        return true;
                 }
             }
         }

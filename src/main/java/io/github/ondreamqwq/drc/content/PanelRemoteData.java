@@ -21,6 +21,7 @@ public final class PanelRemoteData {
     private static final String ROOT = "drc:receiver";
     private static final String POS = "pos";
     private static final String DIM = "dim";
+    private static final String TERMINAL = "drc:terminal";
 
     /** A bound remote: the dimension the receiver lives in, and where it sits. */
     public record Bound(ResourceLocation dimension, BlockPos pos) {
@@ -57,12 +58,64 @@ public final class PanelRemoteData {
         stack.set(DataComponents.CUSTOM_DATA, customData(stack, root));
     }
 
+    /**
+     * The terminal this remote last showed.
+     *
+     * <p>Per stack, not per center: two remotes bound to the same center can sit on two different
+     * terminals, and one player walking over with their own remote must not move anybody else's view.
+     */
+    public static BlockPos terminal(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return null;
+        }
+        CompoundTag tag = data.copyTag();
+        return tag.contains(TERMINAL, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TERMINAL)) : null;
+    }
+
+    public static void setTerminal(ItemStack stack, BlockPos terminal) {
+        CompoundTag tag = stack.get(DataComponents.CUSTOM_DATA) == null
+                ? new CompoundTag() : stack.get(DataComponents.CUSTOM_DATA).copyTag();
+        if (terminal == null) {
+            tag.remove(TERMINAL);
+        } else {
+            tag.putLong(TERMINAL, terminal.asLong());
+        }
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    }
+
     public static void unbind(ItemStack stack) {
         stack.set(DataComponents.CUSTOM_DATA, customData(stack, null));
         if (stack.get(DataComponents.CUSTOM_DATA) != null
                 && stack.get(DataComponents.CUSTOM_DATA).copyTag().isEmpty()) {
             stack.remove(DataComponents.CUSTOM_DATA);
         }
+    }
+
+    /**
+     * The remote the player is carrying that is bound to this center, or {@code null}.
+     *
+     * <p>Hands first - that is the one the player means - then the rest of the inventory, so a remote
+     * sitting in a backpack slot still counts.
+     */
+    public static ItemStack held(net.minecraft.world.entity.player.Player player, BlockPos center) {
+        for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
+            ItemStack stack = player.getItemInHand(hand);
+            if (boundTo(stack, center)) {
+                return stack;
+            }
+        }
+        for (ItemStack stack : player.getInventory().items) {
+            if (boundTo(stack, center)) {
+                return stack;
+            }
+        }
+        return null;
+    }
+
+    private static boolean boundTo(ItemStack stack, BlockPos center) {
+        Bound bound = get(stack);
+        return bound != null && bound.pos().equals(center);
     }
 
     /** The tag with our key replaced, keeping any other custom data the stack already carried. */
@@ -73,6 +126,9 @@ public final class PanelRemoteData {
             tag = existing.copyTag();
         }
         tag.remove(ROOT);
+        if (replacement == null) {
+            tag.remove(TERMINAL);
+        }
         if (replacement != null) {
             tag.put(ROOT, replacement);
         }

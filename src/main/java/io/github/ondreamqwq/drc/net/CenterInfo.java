@@ -24,8 +24,6 @@ public final class CenterInfo {
         info.putBoolean("canEdit", center.canEdit(player));
         info.putBoolean("canOperate", center.canOperate(player));
         info.putBoolean("isOwner", center.owner() != null && center.owner().equals(player.getUUID()));
-
-        BlockPos picked = center.defaultTerminal();
         ListTag terminals = new ListTag();
         for (BlockPos pos : center.terminals()) {
             CompoundTag one = new CompoundTag();
@@ -33,7 +31,6 @@ public final class CenterInfo {
             one.putInt("y", pos.getY());
             one.putInt("z", pos.getZ());
             one.putInt("panels", claimedAt(level, pos));
-            one.putBoolean("selected", pos.equals(picked));
             // Blank stays blank so the screen can show its own "unnamed" wording.
             if (level.getBlockEntity(pos)
                     instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {

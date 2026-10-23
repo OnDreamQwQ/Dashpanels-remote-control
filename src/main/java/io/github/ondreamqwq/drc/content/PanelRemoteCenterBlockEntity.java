@@ -45,7 +45,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
 
     private static final String TAG_TERMINALS = "drc:terminals";
     private static final String TAG_CONSOLES = "drc:consoles";
-    private static final String TAG_DEFAULT = "drc:default";
     private static final String TAG_OWNER = "drc:owner";
     private static final String TAG_ACCESS = "drc:access";
     private static final String TAG_PLAYER = "player";
@@ -69,7 +68,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
     private List<BlockPos> panels = List.of();
 
     /** The terminal the player picked on the center's screen; only ever one of {@link #terminals()}. */
-    private BlockPos defaultTerminal;
 
     /** Every terminal in this network, nearest first. */
     private List<BlockPos> terminals = List.of();
@@ -208,22 +206,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return terminals.contains(pos);
     }
 
-    /** The terminal the remote should follow, or {@code null} when the player never picked one. */
-    public BlockPos defaultTerminal() {
-        return defaultTerminal;
-    }
-
-    public void setDefaultTerminal(BlockPos terminal) {
-        if (terminal == null || terminal.equals(defaultTerminal)) {
-            return;
-        }
-        defaultTerminal = terminal;
-        setChanged();
-        if (level != null) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
-        }
-    }
-
     /** Whether {@code pos} is one of the panels this center serves. */
     public boolean covers(BlockPos pos) {
         return panels.contains(pos);
@@ -306,9 +288,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
-        if (defaultTerminal != null) {
-            tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
-        }
         return tag;
     }
 
@@ -325,7 +304,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         panels = readPanels(tag, TAG_PANELS);
         terminals = readPanels(tag, TAG_TERMINALS);
         consoles = readPanels(tag, TAG_CONSOLES);
-        defaultTerminal = tag.contains(TAG_DEFAULT, Tag.TAG_LONG) ? BlockPos.of(tag.getLong(TAG_DEFAULT)) : null;
     }
 
     @Override
@@ -340,9 +318,6 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         tag.put(TAG_PANELS, new LongArrayTag(panels.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_TERMINALS, new LongArrayTag(terminals.stream().mapToLong(BlockPos::asLong).toArray()));
         tag.put(TAG_CONSOLES, new LongArrayTag(consoles.stream().mapToLong(BlockPos::asLong).toArray()));
-        if (defaultTerminal != null) {
-            tag.putLong(TAG_DEFAULT, defaultTerminal.asLong());
-        }
     }
 
     private ListTag writeAccess() {

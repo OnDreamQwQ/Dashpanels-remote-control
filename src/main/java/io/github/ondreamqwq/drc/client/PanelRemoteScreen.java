@@ -9,6 +9,7 @@ import com.mojang.math.Axis;
 import io.github.ondreamqwq.drc.DrcConfig;
 import io.github.ondreamqwq.drc.compat.AeroworksCompat;
 import io.github.ondreamqwq.drc.content.PanelRemoteCenterBlockEntity;
+import io.github.ondreamqwq.drc.content.PanelRemoteData;
 import io.github.ondreamqwq.drc.net.TerminalClickPacket;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -40,6 +41,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.ByteTag;
 import net.minecraft.nbt.CompoundTag;
@@ -205,13 +207,7 @@ public class PanelRemoteScreen extends Screen {
         Level level = Minecraft.getInstance().level;
         BlockEntity blockEntity = level == null ? null : level.getBlockEntity(receiverPos);
         List<AbstractPanelBlockEntity> found = new ArrayList<>();
-        List<BlockPos> preferred = List.of();
         if (blockEntity instanceof PanelRemoteCenterBlockEntity receiver) {
-            BlockPos terminalPos = receiver.defaultTerminal();
-            if (terminalPos != null && level.getBlockEntity(terminalPos)
-                    instanceof io.github.ondreamqwq.drc.content.PanelLinkTerminalBlockEntity terminal) {
-                preferred = terminal.panels();
-            }
             for (BlockPos pos : receiver.panels()) {
                 if (level.getBlockEntity(pos) instanceof AbstractPanelBlockEntity panel) {
                     found.add(panel);
@@ -220,13 +216,17 @@ public class PanelRemoteScreen extends Screen {
             consoles = receiver.consoles();
             pages = buildPages(level, receiver);
         }
-        if (!preferred.isEmpty()) {
-            // The terminal picked on the center's screen leads, so the view starts where the player left it.
-            List<BlockPos> leading = preferred;
-            found.sort((a, b) -> Boolean.compare(
-                    leading.contains(b.getBlockPos()), leading.contains(a.getBlockPos())));
-        }
         panels = List.copyOf(found);
+        // Each remote remembers its own terminal, so two players can look at two different ones.
+        BlockPos remembered = PanelRemoteData.terminal(remoteStack());
+        if (remembered != null) {
+            for (int i = 0; i < pages.size(); i++) {
+                if (remembered.equals(pages.get(i).terminal())) {
+                    page = i;
+                    break;
+                }
+            }
+        }
         view[1] = DrcConfig.cameraTilt();
         layout();
     }
@@ -438,20 +438,38 @@ public class PanelRemoteScreen extends Screen {
         return out;
     }
 
-    /** Tells the center which terminal feeds this page, so reopening lands on the same page. */
+    /**
+     * The remote item the player is holding that belongs to this center, or {@code null}.
+     *
+     * <p>The screen is opened from the item, but the item is not passed down; the bound center is the
+     * stable key, so the stack is looked up again whenever its stored terminal is needed.
+     */
+    private ItemStack remoteStack() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = PanelRemoteData.held(minecraft.player, receiverPos);
+        return stack == null ? ItemStack.EMPTY : stack;
+    }
+
+    /** Writes this page's terminal onto the remote in hand, so reopening lands on the same page. */
     private void rememberFocus() {
         Page current = currentPage();
-        Minecraft minecraft = Minecraft.getInstance();
-        if (current == null || current.terminal() == null || minecraft.level == null) {
+        if (current == null || current.terminal() == null) {
             return;
         }
-        if (!(minecraft.level.getBlockEntity(receiverPos) instanceof PanelRemoteCenterBlockEntity center)) {
+        ItemStack stack = remoteStack();
+        if (stack.isEmpty()) {
             return;
         }
-        if (!current.terminal().equals(center.defaultTerminal())) {
-            PacketDistributor.sendToServer(
-                    new io.github.ondreamqwq.drc.net.CenterSelectPacket(receiverPos, current.terminal(), false));
+        BlockPos stored = PanelRemoteData.terminal(stack);
+        if (current.terminal().equals(stored)) {
+            return;
         }
+        PanelRemoteData.setTerminal(stack, current.terminal());
+        PacketDistributor.sendToServer(
+                new io.github.ondreamqwq.drc.net.RemoteSelectPacket(receiverPos, current.terminal()));
     }
 
     @Override

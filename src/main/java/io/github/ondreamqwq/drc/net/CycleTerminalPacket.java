@@ -55,11 +55,17 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
                         Component.translatable("gui.dashpanels_remote_control.remote.no_terminal"), true);
                 return;
             }
-            BlockPos current = center.defaultTerminal();
+            // The choice lives on the remote stack, so this only ever moves the remote in hand.
+            net.minecraft.world.item.ItemStack held =
+                    io.github.ondreamqwq.drc.content.PanelRemoteData.held(player, packet.center());
+            if (held == null) {
+                return;
+            }
+            BlockPos current = io.github.ondreamqwq.drc.content.PanelRemoteData.terminal(held);
             int index = current == null ? -1 : terminals.indexOf(current);
             int next = Math.floorMod(index + (index < 0 ? 0 : packet.step()), terminals.size());
             BlockPos picked = terminals.get(next);
-            center.setDefaultTerminal(picked);
+            io.github.ondreamqwq.drc.content.PanelRemoteData.setTerminal(held, picked);
             String name = player.level().getBlockEntity(picked) instanceof PanelLinkTerminalBlockEntity terminal
                     && !terminal.name().isBlank()
                     ? terminal.name()
