@@ -210,6 +210,14 @@ public class CenterScreen extends Screen {
                 if (row.hint() != null) {
                     int hintWidth = font.width(row.hint());
                     graphics.drawString(font, row.hint(), x + WIDTH - 12 - hintWidth, ry + 4, TEXT_DIM, false);
+                if (page == 0) {
+                    int bx = x + WIDTH - 36;
+                    boolean hot = mouseX >= bx && mouseX <= bx + 28 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1;
+                    graphics.fill(bx, ry + 1, bx + 28, ry + ROW_HEIGHT - 2, hot ? 0xFF6E2B2B : 0xFF3A1E1E);
+                    graphics.renderOutline(bx, ry + 1, 28, ROW_HEIGHT - 3, EDGE);
+                    Component label = Component.translatable("gui.dashpanels_remote_control.center.remove_terminal");
+                    graphics.drawString(font, label, bx + (28 - font.width(label)) / 2, ry + 4, TEXT, false);
+                }
                 }
             }
         }
@@ -287,23 +295,31 @@ public class CenterScreen extends Screen {
         int x = left();
         int y = top();
         int visible = (ROW_BOTTOM - ROW_TOP) / ROW_HEIGHT;
-        if (page == 0 && button == 1) {
-            // Right clicking a terminal names it; the remote then lists terminals by that name.
+        if (page == 0) {
             for (int i = 0; i < visible; i++) {
                 int index = i + scroll;
                 if (index >= panelRows.size()) {
                     break;
                 }
                 int ry = y + ROW_TOP + i * ROW_HEIGHT;
-                if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
-                    Row row = panelRows.get(index);
-                    TerminalRenameScreen.open(row.panel(), row.raw());
+                if (mouseX < x + 4 || mouseX > x + WIDTH - 4 || mouseY < ry || mouseY >= ry + ROW_HEIGHT - 1) {
+                    continue;
+                }
+                Row row = panelRows.get(index);
+                if (button == 0 && mouseX >= x + WIDTH - 36 && mouseX <= x + WIDTH - 8) {
+                    // A terminal whose structure is gone has nothing left to draw; the player drops it here.
+                    PacketDistributor.sendToServer(
+                            new io.github.ondreamqwq.drc.net.CenterRemoveTerminalPacket(center, row.panel()));
+                    click();
                     return;
                 }
+                if (button == 1) {
+                    TerminalRenameScreen.open(row.panel(), row.raw());
+                }
+                return;
             }
             return;
-        }
-        for (int i = 0; i < visible; i++) {
+        }        for (int i = 0; i < visible; i++) {
             int index = i + scroll;
             if (index >= playerRows.size()) {
                 break;

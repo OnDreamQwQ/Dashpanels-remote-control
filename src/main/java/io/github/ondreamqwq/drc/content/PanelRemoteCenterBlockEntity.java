@@ -289,6 +289,33 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
      * wheel must not stop on it. A terminal counts here only when it is the nearest terminal of a live
      * panel or console.
      */
+    /**
+     * Drops one terminal from this network for good.
+     *
+     * <p>The registry is the authority - everything else is a cache rebuilt from it - so removing the
+     * position there is enough for the scroll switch, the center screen and a fresh remote to agree.
+     */
+    public boolean forgetTerminal(ServerLevel level, BlockPos terminal) {
+        if (terminal == null) {
+            return false;
+        }
+        boolean changed = false;
+        NetworkRegistry registry = NetworkRegistry.get(level);
+        if (registry.members(networkId, level.dimension().location()).contains(terminal)) {
+            registry.remove(networkId, level.dimension().location(), terminal);
+            changed = true;
+        }
+        List<BlockPos> next = new ArrayList<>(terminals);
+        if (next.remove(terminal)) {
+            terminals = List.copyOf(next);
+            changed = true;
+        }
+        if (changed) {
+            setChanged();
+        }
+        return changed;
+    }
+
     public List<BlockPos> servingTerminals(ServerLevel level) {
         List<BlockPos> all = terminals(level, worldPosition);
         if (all.isEmpty()) {
