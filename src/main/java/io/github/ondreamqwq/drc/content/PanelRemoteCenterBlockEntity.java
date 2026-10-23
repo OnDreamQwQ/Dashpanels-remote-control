@@ -257,6 +257,17 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
      * Every panel claimed by a terminal in this network, nearest first. Sorted by distance rather than
      * by registry order so the list does not reshuffle when a terminal is added.
      */
+    /**
+     * Re-reads the terminal list straight from the network.
+     *
+     * <p>The cached list is only refreshed on this block's tick, so a terminal that was just broken, or
+     * just cut off from the network, is still in it. Anything the player triggers by hand has to look at
+     * the network now instead of at the cache.
+     */
+    public List<BlockPos> rescanTerminals(ServerLevel level) {
+        return terminals(level, worldPosition);
+    }
+
     /** Every terminal of this network in this dimension, nearest to {@code self} first. */
     private List<BlockPos> terminals(ServerLevel level, BlockPos self) {
         List<BlockPos> out = new ArrayList<>();

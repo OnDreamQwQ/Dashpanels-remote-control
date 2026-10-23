@@ -1534,15 +1534,18 @@ public class PanelRemoteScreen extends Screen {
             }
             // No panel module there - the console is the other clickable thing. In Aeroworks a console is
             // not operated through a menu: right clicking it marks you as its user and the client turns
-            // that into the control session, where the modules are dragged around directly. Their session
-            // normally reads the mouse from the game itself; while our screen stays open it pauses that,
-            // and we feed it instead - which is what lets a remote work from across the base.
+            // that into the control session, where the modules are dragged around directly. Its operating
+            // HUD is drawn in the HUD pass, and every screen paints over that, so the session is handed
+            // over and this screen closes: that is what puts the HUD back on top.
             ConsoleHit console = consoleHit(mouseX, mouseY);
             if (console != null) {
                 playClick();
-                consoleDriving = true;
+                if (consoleDriving) {
+                    endConsole();
+                }
                 PacketDistributor.sendToServer(
                         new io.github.ondreamqwq.drc.net.ConsoleUsePacket(receiverPos, console.pos()));
+                minecraft.setScreen(null);
             }
             return true;
         }

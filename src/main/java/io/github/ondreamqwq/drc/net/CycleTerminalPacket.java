@@ -49,9 +49,10 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
             if (!center.canOperate(player)) {
                 return;
             }
-            // Only the terminals that still exist: breaking one must not leave a step in the list that
-            // scrolls the remote onto a block that is gone.
-            var terminals = center.liveTerminals(player.level());
+            // Read the network again rather than trusting the center's cached list: the cache is only
+            // rebuilt on the center's tick, so a terminal that was just broken - or just disconnected -
+            // is still sitting in it, and the wheel would stop on it.
+            var terminals = center.rescanTerminals((net.minecraft.server.level.ServerLevel) player.level());
             if (terminals.isEmpty()) {
                 player.displayClientMessage(
                         Component.translatable("gui.dashpanels_remote_control.remote.no_terminal"), true);
