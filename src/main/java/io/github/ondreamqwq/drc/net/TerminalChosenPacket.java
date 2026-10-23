@@ -42,6 +42,7 @@ public record TerminalChosenPacket(BlockPos center, BlockPos terminal) implement
                 return;
             }
             PanelRemoteData.setTerminal(held, packet.terminal());
+            io.github.ondreamqwq.drc.client.PanelRemoteScreen.announceTerminal(packet.terminal());
         });
     }
 }

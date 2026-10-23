@@ -337,6 +337,17 @@ public class PanelRemoteScreen extends Screen {
         return List.copyOf(out);
     }
 
+    /** Terminals the server has announced a switch to, kept so they get a page on this client too. */
+    private static final java.util.Set<BlockPos> ANNOUNCED =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Called when the server says which terminal the remote moved to. */
+    public static void announceTerminal(BlockPos terminal) {
+        if (terminal != null) {
+            ANNOUNCED.add(terminal);
+        }
+    }
+
     private static BlockPos nearest(BlockPos target, List<BlockPos> candidates) {
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
@@ -540,6 +551,14 @@ public class PanelRemoteScreen extends Screen {
         }
         graphics.fill(0, 0, width, height, BACKDROP);
 
+        if (consoleDriving) {
+            // The console's own HUD is drawn by Aeroworks in the HUD pass, which happens before any
+            // screen. Painting our backdrop and the 3D view over it hid it completely, so while a
+            // console session is being driven this screen gets out of the way and only keeps the hint.
+            drawDrivingHint(graphics);
+            return;
+        }
+
         if (pages.isEmpty()) {
             graphics.drawCenteredString(font,
                     Component.translatable("gui.dashpanels_remote_control.remote.unavailable"),
@@ -561,6 +580,11 @@ public class PanelRemoteScreen extends Screen {
         // because anything queued here can still be overtaken by a batch the game flushes later.
     }
 
+    /** The one line of text kept while a console is being driven, so the HUD shows through. */
+    private void drawDrivingHint(GuiGraphics graphics) {
+        Component hint = Component.translatable("gui.dashpanels_remote_control.remote.console_driving");
+        graphics.drawCenteredString(font, hint, width / 2, height - 32, 0xFFE0E0E0);
+    }
     /**
      * The button that opens the terminal list, so the menu is findable without knowing about Tab.
      *
@@ -941,7 +965,10 @@ public class PanelRemoteScreen extends Screen {
     }
 
     private Hit hitAt(double mouseX, double mouseY) {
-        for (AbstractPanelBlockEntity panel : panels) {
+        // Only the page on screen is clickable: walking every panel the center serves let a module of a
+        // terminal the player is not looking at answer the cursor, which read as "another terminal's
+        // panel still works while this one is selected".
+        for (AbstractPanelBlockEntity panel : pagePanels()) {
             for (ModuleRect rect : moduleRects(panel)) {
                 if (inside(rect.rect(), mouseX, mouseY)) {
                     return new Hit(panel, rect.module(), rect.rect());

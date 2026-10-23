@@ -21,7 +21,11 @@ public final class RemoteScrollSwitch {
     private RemoteScrollSwitch() {
     }
 
-    @SubscribeEvent
+    /**
+     * Highest priority: the remote owns sneak + wheel, so no other handler gets to swallow the scroll
+     * first and leave the terminal switch looking broken.
+     */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGHEST)
     public static void onScroll(InputEvent.MouseScrollingEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen != null || minecraft.player == null) {
