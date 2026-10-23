@@ -49,7 +49,9 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
             if (!center.canOperate(player)) {
                 return;
             }
-            var terminals = center.terminals();
+            // Only the terminals that still exist: breaking one must not leave a step in the list that
+            // scrolls the remote onto a block that is gone.
+            var terminals = center.liveTerminals(player.level());
             if (terminals.isEmpty()) {
                 player.displayClientMessage(
                         Component.translatable("gui.dashpanels_remote_control.remote.no_terminal"), true);
@@ -63,6 +65,10 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
             }
             BlockPos current = io.github.ondreamqwq.drc.content.PanelRemoteData.terminal(held);
             int index = current == null ? -1 : terminals.indexOf(current);
+            if (current != null && index < 0) {
+                io.github.ondreamqwq.drc.content.PanelRemoteData.setTerminal(held, terminals.get(0));
+                index = -1;
+            }
             int next = Math.floorMod(index + (index < 0 ? 0 : packet.step()), terminals.size());
             BlockPos picked = terminals.get(next);
             io.github.ondreamqwq.drc.content.PanelRemoteData.setTerminal(held, picked);

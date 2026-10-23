@@ -196,6 +196,24 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
         return terminals;
     }
 
+    /**
+     * The cached list with the terminals that no longer exist dropped.
+     *
+     * <p>{@link #terminals()} is only refreshed on the center's own tick, so anything that walks the list
+     * between two ticks - sneaking and scrolling with the remote does exactly that - can still see a
+     * terminal the player has just broken. Handing those out made the scroll switch stop on terminals
+     * that were not there any more.
+     */
+    public List<BlockPos> liveTerminals(Level level) {
+        List<BlockPos> out = new ArrayList<>(terminals.size());
+        for (BlockPos pos : terminals) {
+            if (level.getBlockEntity(pos) instanceof PanelLinkTerminalBlockEntity) {
+                out.add(pos);
+            }
+        }
+        return out;
+    }
+
     /** Aeroworks consoles reachable through this center, if that mod is installed. */
     public List<BlockPos> consoles() {
         return consoles;

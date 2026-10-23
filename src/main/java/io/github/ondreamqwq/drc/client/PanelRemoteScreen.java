@@ -193,6 +193,7 @@ public class PanelRemoteScreen extends Screen {
      * presses are handed to it by hand. That is what makes a console usable from far away.
      */
     private boolean consoleDriving;
+    private boolean restored;
 
     /** Which panel the camera is centred on; null keeps the whole page in the middle. */
     private BlockPos focusPos;
@@ -225,13 +226,18 @@ public class PanelRemoteScreen extends Screen {
             pages = buildPages(level, receiver);
         }
         panels = List.copyOf(found);
-        // Each remote remembers its own terminal, so two players can look at two different ones.
-        BlockPos remembered = PanelRemoteData.terminal(remoteStack());
-        if (remembered != null) {
-            for (int i = 0; i < pages.size(); i++) {
-                if (remembered.equals(pages.get(i).terminal())) {
-                    page = i;
-                    break;
+        // Each remote remembers its own terminal, so two players can look at two different ones. Only
+        // done once per screen instance: init() runs again whenever another screen hands control back,
+        // and restoring there would undo the page the player just picked in the list.
+        if (!restored) {
+            restored = true;
+            BlockPos remembered = PanelRemoteData.terminal(remoteStack());
+            if (remembered != null) {
+                for (int i = 0; i < pages.size(); i++) {
+                    if (remembered.equals(pages.get(i).terminal())) {
+                        page = i;
+                        break;
+                    }
                 }
             }
         }
@@ -440,6 +446,22 @@ public class PanelRemoteScreen extends Screen {
         layout();
         playClick();
         panelTitle();
+    }
+
+    /** Writes the page's terminal onto the remote in hand, so reopening the remote starts here. */
+    private void rememberPage() {
+        Page current = currentPage();
+        if (current == null || current.terminal() == null) {
+            return;
+        }
+        ItemStack stack = remoteStack();
+        if (stack.isEmpty()) {
+            return;
+        }
+        if (!current.terminal().equals(PanelRemoteData.terminal(stack))) {
+            PanelRemoteData.setTerminal(stack, current.terminal());
+            PacketDistributor.sendToServer(new io.github.ondreamqwq.drc.net.RemoteSelectPacket(receiverPos, current.terminal()));
+        }
     }
 
     private String focusedPanelName() {
