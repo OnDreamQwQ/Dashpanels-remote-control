@@ -25,7 +25,7 @@ public final class CenterInfo {
         info.putBoolean("canOperate", center.canOperate(player));
         info.putBoolean("isOwner", center.owner() != null && center.owner().equals(player.getUUID()));
         ListTag terminals = new ListTag();
-        for (BlockPos pos : center.terminals()) {
+        for (BlockPos pos : center.liveTerminals(level)) {
             CompoundTag one = new CompoundTag();
             one.putInt("x", pos.getX());
             one.putInt("y", pos.getY());

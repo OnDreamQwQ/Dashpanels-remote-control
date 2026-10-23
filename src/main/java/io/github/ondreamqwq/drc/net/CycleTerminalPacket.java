@@ -72,6 +72,10 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
             int next = Math.floorMod(index + (index < 0 ? 0 : packet.step()), terminals.size());
             BlockPos picked = terminals.get(next);
             io.github.ondreamqwq.drc.content.PanelRemoteData.setTerminal(held, picked);
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer,
+                        new TerminalChosenPacket(packet.center(), picked));
+            }
             String name = player.level().getBlockEntity(picked) instanceof PanelLinkTerminalBlockEntity terminal
                     && !terminal.name().isBlank()
                     ? terminal.name()

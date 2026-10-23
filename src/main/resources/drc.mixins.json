@@ -3,7 +3,7 @@
   "minVersion": "0.8",
   "package": "io.github.ondreamqwq.drc.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": ["ConsoleKeepAliveMixin"],
   "client": [
     "client.GuiCrosshairMixin"
   ],

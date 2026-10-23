@@ -886,19 +886,46 @@ public class PanelRemoteScreen extends Screen {
         return out;
     }
 
-    /** The console socket under the cursor, if any. */
+    /**
+     * The console socket under the cursor, if any - the nearest one when several line up.
+     *
+     * <p>Consoles stand next to each other, so their projected sockets can overlap. Taking the first
+     * match of the iteration order let a console drawn behind another one swallow the click, which is
+     * why a console that was not visible could still be operated. Picking by distance from the virtual
+     * camera makes the console that is actually on top the one that answers the cursor.
+     */
     private ConsoleHit consoleHit(double mouseX, double mouseY) {
-        if (pageConsoles().isEmpty()) {
+        List<BlockPos> consoles = pageConsoles();
+        if (consoles.isEmpty()) {
             return null;
         }
-        for (BlockPos pos : pageConsoles()) {
+        ConsoleHit best = null;
+        float nearest = Float.MAX_VALUE;
+        for (BlockPos pos : consoles) {
+            SocketRect under = null;
             for (SocketRect rect : consoleRects(pos)) {
                 if (inside(rect.rect(), mouseX, mouseY)) {
-                    return new ConsoleHit(pos, rect.socket(), rect.rect());
+                    under = rect;
+                    break;
                 }
             }
+            if (under == null) {
+                continue;
+            }
+            PoseStack local = new PoseStack();
+            local.pushPose();
+            assemblyPose(local);
+            panelOffset(local, pos);
+            org.joml.Vector3f origin = new Matrix4f(local.last().pose())
+                    .transformPosition(new org.joml.Vector3f(0.0F, 0.0F, 0.0F));
+            local.popPose();
+            float distance = origin.lengthSquared();
+            if (distance < nearest) {
+                nearest = distance;
+                best = new ConsoleHit(pos, under.socket(), under.rect());
+            }
         }
-        return null;
+        return best;
     }
 
     private MultiBufferSource.BufferSource ownBuffers() {        if (ownPool == null) {
