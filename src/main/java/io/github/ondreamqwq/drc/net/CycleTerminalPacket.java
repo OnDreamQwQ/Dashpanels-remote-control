@@ -71,6 +71,9 @@ public record CycleTerminalPacket(BlockPos center, int step) implements CustomPa
                 index = -1;
             }
             int next = Math.floorMod(index + (index < 0 ? 0 : packet.step()), terminals.size());
+            org.slf4j.LoggerFactory.getLogger("drc").info(
+                    "wheel: server step={} current={} index={} terminals={} picked={}",
+                    packet.step(), current, index, terminals, next);
             BlockPos picked = terminals.get(next);
             io.github.ondreamqwq.drc.content.PanelRemoteData.setTerminal(held, picked);
             if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {

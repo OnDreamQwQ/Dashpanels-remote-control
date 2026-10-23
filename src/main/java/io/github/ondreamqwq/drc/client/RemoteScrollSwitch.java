@@ -43,6 +43,9 @@ public final class RemoteScrollSwitch {
                 || !bound.dimension().equals(minecraft.level.dimension().location())) {
             return;
         }
+        org.slf4j.LoggerFactory.getLogger("drc").info(
+                "wheel: shift+scroll by player, item={} bound={} step={}",
+                held.getItem(), bound.pos(), event.getScrollDeltaY());
         double delta = event.getScrollDeltaY();
         if (delta == 0.0D) {
             return;

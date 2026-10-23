@@ -442,6 +442,30 @@ public class PanelRemoteScreen extends Screen {
         setPage(Math.floorMod(page + step, pages.size()), null);
     }
 
+    /**
+     * Jumps to the page of one terminal, rebuilding the page list first so a terminal the server just
+     * announced gets a page even when this client copy of the center data is older than the network.
+     */
+    public void jumpToTerminal(BlockPos terminal) {
+        if (terminal == null) {
+            return;
+        }
+        Level level = Minecraft.getInstance().level;
+        if (level != null && level.getBlockEntity(receiverPos) instanceof PanelRemoteCenterBlockEntity receiver) {
+            pages = buildPages(level, receiver);
+        }
+        for (int i = 0; i < pages.size(); i++) {
+            if (terminal.equals(pages.get(i).terminal())) {
+                if (i != page) {
+                    setPage(i);
+                } else {
+                    layout();
+                }
+                return;
+            }
+        }
+    }
+
     /** Jumps to one page, which is what the list screen does when a terminal row is clicked. */
     void setPage(int index) {
         setPage(index, null);
@@ -1897,7 +1921,10 @@ public class PanelRemoteScreen extends Screen {
             }
         }
         if (hasShiftDown()) {
-            turnPage(scrollY > 0.0D ? 1 : -1);
+            // Ask the server which terminal comes next: it rescans the network, so a terminal that was
+            // broken or cut off no longer takes a turn here.
+            PacketDistributor.sendToServer(new io.github.ondreamqwq.drc.net.CycleTerminalPacket(
+                    receiverPos, scrollY > 0.0D ? 1 : -1));
             return true;
         }
 

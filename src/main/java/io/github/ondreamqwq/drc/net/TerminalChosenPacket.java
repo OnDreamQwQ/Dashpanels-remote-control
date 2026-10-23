@@ -43,6 +43,10 @@ public record TerminalChosenPacket(BlockPos center, BlockPos terminal) implement
             }
             PanelRemoteData.setTerminal(held, packet.terminal());
             io.github.ondreamqwq.drc.client.PanelRemoteScreen.announceTerminal(packet.terminal());
+            if (net.minecraft.client.Minecraft.getInstance().screen
+                    instanceof io.github.ondreamqwq.drc.client.PanelRemoteScreen screen) {
+                screen.jumpToTerminal(packet.terminal());
+            }
         });
     }
 }
