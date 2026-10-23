@@ -368,16 +368,25 @@ public class CenterScreen extends Screen {
                 }
                 int ry = y + ROW_TOP + i * ROW_HEIGHT;
                 if (mouseX >= x + 4 && mouseX <= x + WIDTH - 4 && mouseY >= ry && mouseY < ry + ROW_HEIGHT - 1) {
-                    click();
                     Row row = panelRows.get(index);
                     BlockPos panel = row.panel();
                     if (button == 1) {
+                        // Right click names the terminal; the remote lists terminals by that name.
+                        click();
                         if (panel != null) {
                             TerminalRenameScreen.open(panel, row.raw());
                         }
                         return true;
                     }
-                                        return true;
+                    if (button == 0 && panel != null && mouseX >= x + WIDTH - 36 && mouseX <= x + WIDTH - 8) {
+                        // The button at the end of the row: forget this terminal entirely.
+                        PacketDistributor.sendToServer(
+                                new io.github.ondreamqwq.drc.net.CenterRemoveTerminalPacket(center, panel));
+                        click();
+                        return true;
+                    }
+                    click();
+                    return true;
                 }
             }
         }
