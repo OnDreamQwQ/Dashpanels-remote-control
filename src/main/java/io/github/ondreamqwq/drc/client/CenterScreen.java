@@ -24,13 +24,11 @@ import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The center's screen, painted from hand-drawn sheets.
- *
- * <p>Window chrome is sliced out of {@code connect_center.png} (title strip, the darker band the
- * tabs sit in, and the six-row divider); the content area is the same 1px green checkerboard the
- * artist painted, drawn with fill instead of a blit so the window can be any height. Inside it the
- * tabs, the row buttons, the info strip and the bottom edit bar are sliced out of
- * {@code control_center_02.png} at the coordinates measured off the sheet.
+ * The center's screen, blitted from the painted sheets at native scale - nothing is stretched.
+ * Window: 218x244 at (2,1) of connect_center.png. Tabs: the three 28x13 strips at y=72 of
+ * control_center_02.png (plain / hover / selected). Buttons: the 18x18 squares in
+ * connect_center.png's right column (plain / hover / selected). Detail frame: 194x70 at (1,1) of
+ * control_center_02.png. Edit strip: 134x18 at (1,86) of control_center_02.png.
  */
 public class CenterScreen extends Screen {
 
@@ -41,34 +39,44 @@ public class CenterScreen extends Screen {
     private static final ResourceLocation HEADS =
             ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
 
-    private static final int W = 220;
-    private static final int H = 182;
+    private static final int WIN_X = 2;
+    private static final int WIN_Y = 1;
+    private static final int W = 218;
+    private static final int H = 244;
 
-    private static final int BAND_Y = 16;
-    private static final int BAND_H = 16;
-    private static final int DIVIDER_Y = 32;
-    private static final int DIVIDER_H = 6;
-    private static final int CONTENT_Y = 38;
-
-    private static final int TAB_Y = 18;
     private static final int TAB_W = 28;
     private static final int TAB_H = 13;
-    private static final int SEG_U_DARK = 1;
-    private static final int SEG_U_LIT = 30;
-    private static final int SEG_V = 72;
+    private static final int TAB_Y = 18;
+    private static final int[] TAB_U = {1, 30, 59};
+    private static final int TAB_V = 72;
 
-    private static final int ROW_H = 22;
-    private static final int BTN_W = 28;
-    private static final int BTN_H = 13;
-    private static final int BAR_H = 22;
+    private static final int BTN_W = 18;
+    private static final int BTN_H = 18;
+    private static final int[] BTN_V = {0, 19, 39};
+    private static final int BTN_U = 238;
 
-    private static final int FILL_A = 0xFF006C58;
-    private static final int FILL_B = 0xFF007E68;
+    private static final int FRAME_W = 194;
+    private static final int FRAME_H = 70;
+    private static final int FRAME_U = 1;
+    private static final int FRAME_V = 1;
+
+    private static final int STRIP_W = 134;
+    private static final int STRIP_H = 18;
+    private static final int STRIP_U = 1;
+    private static final int STRIP_V = 86;
+    private static final int GAP = 3;
+
+    private static final int LIST_TOP = 42;
+    private static final int LIST_BOTTOM = 140;
+    private static final int ROW_H = 20;
+    private static final int FRAME_TOP = LIST_BOTTOM + 2;
+    private static final int BAR_TOP = FRAME_TOP + FRAME_H + 4;
+
     private static final int TEXT = 0xFFFFFFFF;
     private static final int DIM = 0xFFAFC9C4;
     private static final int ACCENT = 0xFFFFC400;
     private static final int ONLINE = 0xFF8BE88B;
-    private static final int MUTED = 0xFF7A8F8A;
+    private static final int MUTED = 0xFF6F8681;
 
     private static final byte ACCESS_OPERATE = PanelRemoteCenterBlockEntity.ACCESS_OPERATE;
     private static final byte ACCESS_EDIT = PanelRemoteCenterBlockEntity.ACCESS_EDIT;
@@ -79,11 +87,11 @@ public class CenterScreen extends Screen {
             "gui.dashpanels_remote_control.center.remotes",
             "gui.dashpanels_remote_control.center.players");
 
-    /** Kept across reopenings so handing out a right does not throw the owner back to page one. */
     private static int lastPage;
 
     private int page;
     private int scroll;
+    private int selected = -1;
     private boolean canEdit;
     private boolean isOwner;
     private String network = "";
@@ -93,11 +101,9 @@ public class CenterScreen extends Screen {
     private final List<RemoteRow> remotes = new ArrayList<>();
     private final List<AccessRow> accesses = new ArrayList<>();
 
-    /** Which terminal the remote page's assign button points at; picked on the terminal page. */
-    private int picked = -1;
-
     private EditBox input;
-    /** Set while the bottom bar is renaming this terminal. */
+    /** True only while a rename is armed; the bar and its two buttons appear just for that. */
+    private boolean typing;
     private BlockPos renaming;
 
     private record TerminalRow(BlockPos pos, String name, int panels) {
@@ -120,7 +126,6 @@ public class CenterScreen extends Screen {
         return center;
     }
 
-    /** A fresh snapshot arrived: repaint in place, keeping the page and the scroll position. */
     public void update(CompoundTag info) {
         read(info);
     }
@@ -129,7 +134,6 @@ public class CenterScreen extends Screen {
         Minecraft.getInstance().setScreen(new CenterScreen(center, info));
     }
 
-    /** Shows a new name right away, before the server's snapshot confirms it. */
     public void setPendingName(BlockPos terminal, String name) {
         for (int i = 0; i < terminals.size(); i++) {
             TerminalRow row = terminals.get(i);
@@ -170,29 +174,9 @@ public class CenterScreen extends Screen {
             accesses.add(new AccessRow(one.getString("name"), one.getInt("level_id"),
                     one.getString("id")));
         }
-        if (picked >= terminals.size()) {
-            picked = -1;
+        if (selected >= rowCount()) {
+            selected = -1;
         }
-    }
-
-    private int left() {
-        return (width - W) / 2;
-    }
-
-    private int top() {
-        return (height - H) / 2;
-    }
-
-    private int listTop() {
-        return top() + CONTENT_Y + 4;
-    }
-
-    private int listBottom() {
-        return top() + H - BAR_H - 10;
-    }
-
-    private int visibleRows() {
-        return Math.max(1, (listBottom() - listTop()) / ROW_H);
     }
 
     private int rowCount() {
@@ -203,24 +187,24 @@ public class CenterScreen extends Screen {
         };
     }
 
-    // ------------------------------------------------------------------ rendering
+    private int left() {
+        return (width - W) / 2 - WIN_X;
+    }
+
+    private int top() {
+        return (height - H) / 2 - WIN_Y;
+    }
+
+    private int visibleRows() {
+        return Math.max(1, (LIST_BOTTOM - LIST_TOP) / ROW_H);
+    }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int x = left();
-        int y = top();
+        int x = left() + WIN_X;
+        int y = top() + WIN_Y;
 
-        graphics.blit(WINDOW, x, y, 0, 0, W, BAND_Y + 1);
-        graphics.blit(WINDOW, x, y + BAND_Y, 0, BAND_Y, W, BAND_H);
-
-        for (int cy = CONTENT_Y; cy < H - 4; cy++) {
-            for (int cx = 1; cx < W - 1; cx++) {
-                graphics.fill(x + cx, y + cy, x + cx + 1, y + cy + 1,
-                        ((cx + cy) & 1) == 0 ? FILL_A : FILL_B);
-            }
-        }
-
-        graphics.blit(WINDOW, x, y + DIVIDER_Y, 0, DIVIDER_Y, W, DIVIDER_H);
+        graphics.blit(WINDOW, x, y, WIN_X, WIN_Y, W, H);
 
         graphics.drawString(font, title, x + 8, y + 5, TEXT, false);
         if (!network.isEmpty()) {
@@ -228,134 +212,195 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, id, x + W - 8 - font.width(id), y + 5, DIM, false);
         }
 
-        drawTabs(graphics, mouseX, mouseY, x, y);
+        for (int i = 0; i < tabs.size(); i++) {
+            int tx = x + 6 + i * (TAB_W + 1);
+            int ty = y + TAB_Y;
+            int state = i == page ? 2 : (hover(mouseX, mouseY, tx, ty, TAB_W, TAB_H) ? 1 : 0);
+            graphics.blit(WIDGETS, tx, ty, TAB_U[state], TAB_V, TAB_W, TAB_H);
+            Component label = Component.translatable(tabs.get(i));
+            graphics.drawString(font, label, tx + (TAB_W - font.width(label)) / 2, ty + 3,
+                    state == 0 ? DIM : 0xFF0A291D, false);
+        }
 
-        int top = listTop();
-        int bottom = listBottom();
         scroll = Mth.clamp(scroll, 0, Math.max(0, rowCount() - visibleRows()));
-        graphics.enableScissor(x + 2, top, x + W - 2, bottom);
         for (int i = 0; i < visibleRows(); i++) {
             int index = i + scroll;
             if (index >= rowCount()) {
                 break;
             }
-            drawRow(graphics, index, x + 6, top + i * ROW_H, mouseX, mouseY);
+            drawRow(graphics, index, x + 4, y + LIST_TOP + i * ROW_H, mouseX, mouseY);
         }
-        graphics.disableScissor();
-
         if (rowCount() == 0) {
             Component empty = Component.translatable("gui.dashpanels_remote_control.center.empty");
-            graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, top + 18, DIM, false);
+            graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 12, DIM, false);
         }
 
-        drawBottomBar(graphics, mouseX, mouseY, x, y);
-    }
-
-    private void drawTabs(GuiGraphics graphics, int mouseX, int mouseY, int x, int y) {
-        for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 6 + i * (TAB_W + 2);
-            int ty = y + TAB_Y;
-            boolean lit = page == i;
-            graphics.blit(WIDGETS, tx, ty, lit ? SEG_U_LIT : SEG_U_DARK, SEG_V, TAB_W, TAB_H);
-            if (!lit && hover(mouseX, mouseY, tx, ty, TAB_W, TAB_H)) {
-                graphics.fill(tx + 1, ty + 1, tx + TAB_W - 1, ty + TAB_H - 1, 0x33FFFFFF);
-            }
-            Component label = Component.translatable(tabs.get(i));
-            graphics.drawString(font, label, tx + (TAB_W - font.width(label)) / 2, ty + 3,
-                    lit ? 0xFF16321A : DIM, false);
+        drawDetails(graphics, x, y);
+        if (barVisible()) {
+            drawBar(graphics, x, y, mouseX, mouseY);
         }
     }
 
     private void drawRow(GuiGraphics graphics, int index, int x, int y, int mouseX, int mouseY) {
-        if (mouseY >= y && mouseY < y + ROW_H - 2) {
-            graphics.fill(x - 2, y, x + W - 10, y + ROW_H - 2, 0x26FFFFFF);
+        boolean hovered = mouseX >= x && mouseX < x + W - 8 && mouseY >= y && mouseY < y + ROW_H - 2;
+        if (hovered || index == selected) {
+            graphics.fill(x - 1, y - 1, x + W - 9, y + ROW_H - 3,
+                    index == selected ? 0x40000000 : 0x20000000);
         }
-        int bx2 = x + W - 16 - BTN_W;
-        int bx1 = bx2 - BTN_W - 3;
+        int bx2 = x + W - 12 - BTN_W;
+        int bx1 = bx2 - BTN_W - GAP;
         switch (page) {
             case 0 -> {
                 TerminalRow row = terminals.get(index);
                 String name = row.name().isEmpty()
                         ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
                         : row.name();
-                graphics.drawString(font, name, x, y + 2, picked == index ? ACCENT : TEXT, false);
+                graphics.drawString(font, name, x + 2, y + 6, index == selected ? ACCENT : TEXT, false);
                 String meta = Component.translatable("gui.dashpanels_remote_control.center.panel_count",
-                        row.panels()).getString() + " · " + row.pos().toShortString();
-                graphics.drawString(font, meta, x, y + 12, DIM, false);
-                segment(graphics, bx1, y + 4, "gui.dashpanels_remote_control.center.rename", mouseX, mouseY,
-                        canEdit && renaming == null);
-                segment(graphics, bx2, y + 4, "gui.dashpanels_remote_control.center.remove_terminal",
-                        mouseX, mouseY, canEdit);
+                        row.panels()).getString();
+                graphics.drawString(font, meta, x + 4 + font.width(name) + 6, y + 6, DIM, false);
+                square(graphics, bx1, y, "改", mouseX, mouseY, canEdit);
+                square(graphics, bx2, y, "断", mouseX, mouseY, canEdit);
             }
             case 1 -> {
                 RemoteRow row = remotes.get(index);
-                graphics.drawString(font, row.name(), x, y + 2, TEXT, false);
+                graphics.drawString(font, row.name(), x + 2, y + 2, TEXT, false);
                 String meta = Component.translatable("gui.dashpanels_remote_control.center.remote_meta",
                         row.owner().isEmpty() ? "-" : row.owner(),
                         row.id().isEmpty() ? "-" : row.id()).getString();
-                graphics.drawString(font, meta, x, y + 12, row.online() ? ONLINE : DIM, false);
-                segment(graphics, bx1, y + 4, "gui.dashpanels_remote_control.center.assign", mouseX, mouseY,
-                        picked >= 0);
-                segment(graphics, bx2, y + 4, "gui.dashpanels_remote_control.center.forget", mouseX, mouseY,
-                        canEdit);
+                graphics.drawString(font, meta, x + 2, y + 11, row.online() ? ONLINE : DIM, false);
+                square(graphics, bx1, y, "指", mouseX, mouseY, true);
+                square(graphics, bx2, y, "断", mouseX, mouseY, canEdit);
             }
             default -> {
                 AccessRow row = accesses.get(index);
-                graphics.blit(HEADS, x, y + 3, 8, 8, 8, 8, 64, 64);
-                graphics.drawString(font, row.name(), x + 12, y + 2, TEXT, false);
+                graphics.blit(HEADS, x + 2, y + 5, 8, 8, 8, 8, 64, 64);
+                graphics.drawString(font, row.name(), x + 14, y + 2, TEXT, false);
                 String meta = Component.translatable(levelKey(row.level())).getString() + " · "
                         + (row.id().isEmpty() ? "-" : row.id());
-                graphics.drawString(font, meta, x + 12, y + 12, DIM, false);
-                segment(graphics, bx1, y + 4,
-                        row.level() == ACCESS_EDIT
-                                ? "gui.dashpanels_remote_control.center.to_operate"
-                                : "gui.dashpanels_remote_control.center.to_edit",
-                        mouseX, mouseY, isOwner);
-                segment(graphics, bx2, y + 4, "gui.dashpanels_remote_control.center.remove_user",
-                        mouseX, mouseY, isOwner);
+                graphics.drawString(font, meta, x + 14, y + 11, DIM, false);
+                square(graphics, bx1, y, row.level() == ACCESS_EDIT ? "只" : "改", mouseX, mouseY, isOwner);
+                square(graphics, bx2, y, "删", mouseX, mouseY, isOwner);
             }
         }
     }
 
-    private void segment(GuiGraphics graphics, int bx, int by, String key, int mouseX, int mouseY,
-                         boolean enabled) {
-        boolean hot = enabled && hover(mouseX, mouseY, bx, by, BTN_W, BTN_H);
-        graphics.blit(WIDGETS, bx, by, hot ? SEG_U_LIT : SEG_U_DARK, SEG_V, BTN_W, BTN_H);
-        Component label = Component.translatable(key);
-        graphics.drawString(font, label, bx + (BTN_W - font.width(label)) / 2, by + 3,
-                enabled ? (hot ? 0xFF16321A : TEXT) : MUTED, false);
+    private void square(GuiGraphics graphics, int bx, int by, String glyph, int mouseX, int mouseY,
+                        boolean enabled) {
+        int state = enabled && hover(mouseX, mouseY, bx, by, BTN_W, BTN_H) ? 1 : 0;
+        graphics.blit(WINDOW, bx, by, BTN_U, BTN_V[state], BTN_W, BTN_H);
+        int color = enabled ? (state == 1 ? 0xFF0A291D : TEXT) : MUTED;
+        graphics.drawString(font, glyph, bx + (BTN_W - font.width(glyph)) / 2, by + 5, color, false);
     }
 
-    private void drawBottomBar(GuiGraphics graphics, int mouseX, int mouseY, int x, int y) {
-        int by = y + H - BAR_H - 4;
-        graphics.blit(WIDGETS, x + 6, by, 1, 86, 134, 18);
+    private void drawDetails(GuiGraphics graphics, int x, int y) {
+        int fx = x + (W - FRAME_W) / 2;
+        int fy = y + FRAME_TOP;
+        graphics.blit(WIDGETS, fx, fy, FRAME_U, FRAME_V, FRAME_W, FRAME_H);
+
+        int tx = fx + 6;
+        int ty = fy + 7;
+        switch (page) {
+            case 0 -> {
+                if (selected >= 0 && selected < terminals.size()) {
+                    TerminalRow row = terminals.get(selected);
+                    line(graphics, tx, ty,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
+                            row.name().isEmpty()
+                                    ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed")
+                                    : Component.literal(row.name()));
+                    line(graphics, tx, ty + 14,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_pos"),
+                            Component.literal(row.pos().toShortString()));
+                    line(graphics, tx, ty + 28,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_panels"),
+                            Component.literal(String.valueOf(row.panels())));
+                    line(graphics, tx, ty + 42,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_id"),
+                            Component.literal(network.isEmpty() ? "-" : network));
+                } else {
+                    hint(graphics, fx, fy, Component.translatable(
+                            "gui.dashpanels_remote_control.center.pick_row"));
+                }
+            }
+            case 1 -> {
+                if (selected >= 0 && selected < remotes.size()) {
+                    RemoteRow row = remotes.get(selected);
+                    line(graphics, tx, ty,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
+                            Component.literal(row.name()));
+                    line(graphics, tx, ty + 14,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_owner"),
+                            Component.literal(row.owner().isEmpty() ? "-" : row.owner()));
+                    line(graphics, tx, ty + 28,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_id"),
+                            Component.literal(row.id().isEmpty() ? "-" : row.id()));
+                } else {
+                    hint(graphics, fx, fy, Component.translatable(
+                            "gui.dashpanels_remote_control.center.pick_row"));
+                }
+            }
+            default -> {
+                line(graphics, tx, ty,
+                        Component.translatable("gui.dashpanels_remote_control.center.field_owner"),
+                        Component.literal(ownerName.isEmpty() ? "-" : ownerName));
+                line(graphics, tx, ty + 14,
+                        Component.translatable("gui.dashpanels_remote_control.center.field_id"),
+                        Component.literal(network.isEmpty() ? "-" : network));
+                if (selected >= 0 && selected < accesses.size()) {
+                    AccessRow row = accesses.get(selected);
+                    line(graphics, tx, ty + 28,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
+                            Component.literal(row.name()));
+                    line(graphics, tx, ty + 42,
+                            Component.translatable("gui.dashpanels_remote_control.center.field_level"),
+                            Component.translatable(levelKey(row.level())));
+                }
+            }
+        }
+    }
+
+    private void line(GuiGraphics graphics, int x, int y, Component label, Component value) {
+        graphics.drawString(font, label, x, y, DIM, false);
+        graphics.drawString(font, value, x + 58, y, TEXT, false);
+    }
+
+    private void hint(GuiGraphics graphics, int fx, int fy, Component text) {
+        graphics.drawString(font, text, fx + (FRAME_W - font.width(text)) / 2, fy + FRAME_H / 2 - 4, DIM, false);
+    }
+
+    private boolean barVisible() {
+        return typing || page == 2;
+    }
+
+    private void drawBar(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
+        int by = y + BAR_TOP;
+        int ix = x + 4;
+        graphics.blit(WIDGETS, ix, by, STRIP_U, STRIP_V, STRIP_W, STRIP_H);
 
         if (input != null) {
-            input.setPosition(x + 10, by + 5);
+            input.setX(ix + 4);
+            input.setY(by + 5);
             input.render(graphics, mouseX, mouseY, 0.0F);
         } else {
-            Component hint = Component.translatable(page == 2
-                    ? "gui.dashpanels_remote_control.center.name_hint"
-                    : "gui.dashpanels_remote_control.center.rename_hint");
-            graphics.drawString(font, hint, x + 10, by + 6, DIM, false);
+            Component hint = Component.translatable(typing
+                    ? "gui.dashpanels_remote_control.center.rename_hint"
+                    : "gui.dashpanels_remote_control.center.name_hint");
+            graphics.drawString(font, hint, ix + 4, by + 5, DIM, false);
         }
 
-        int bx2 = x + W - 12 - BTN_W;
-        int bx1 = bx2 - BTN_W - 3;
-        if (page == 2) {
-            segment(graphics, bx1, by + 2, "gui.dashpanels_remote_control.center.add_edit", mouseX, mouseY,
-                    isOwner);
-            segment(graphics, bx2, by + 2, "gui.dashpanels_remote_control.center.add_operate", mouseX, mouseY,
-                    isOwner);
+        int bx1 = ix + STRIP_W + GAP;
+        int bx2 = bx1 + BTN_W + GAP;
+        if (typing) {
+            square(graphics, bx1, by, "✓", mouseX, mouseY, true);
+            square(graphics, bx2, by, "✕", mouseX, mouseY, true);
         } else {
-            segment(graphics, bx1, by + 2, "gui.dashpanels_remote_control.center.confirm", mouseX, mouseY,
-                    input != null && renaming != null);
-            segment(graphics, bx2, by + 2, "gui.dashpanels_remote_control.center.cancel", mouseX, mouseY,
-                    input != null);
+            square(graphics, bx1, by, "改", mouseX, mouseY, isOwner);
+            square(graphics, bx2, by, "只", mouseX, mouseY, isOwner);
         }
         if (!canEdit && !isOwner) {
             Component ro = Component.translatable("gui.dashpanels_remote_control.center.readonly");
-            graphics.drawString(font, ro, x + 8, y + 6 + BAND_H - 8, MUTED, false);
+            graphics.drawString(font, ro, bx2 + BTN_W + GAP, by + 5, MUTED, false);
         }
     }
 
@@ -369,84 +414,85 @@ public class CenterScreen extends Screen {
         return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
     }
 
-    // ------------------------------------------------------------------ input
-
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int x = left();
-        int y = top();
+        int x = left() + WIN_X;
+        int y = top() + WIN_Y;
 
         for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 6 + i * (TAB_W + 2);
+            int tx = x + 6 + i * (TAB_W + 1);
             if (hover(mouseX, mouseY, tx, y + TAB_Y, TAB_W, TAB_H)) {
                 if (page != i) {
                     page = i;
                     lastPage = i;
                     scroll = 0;
-                    clearEditor();
+                    selected = -1;
+                    stopTyping();
                 }
                 click();
                 return true;
             }
         }
 
-        if (mouseY >= listTop() && mouseY < listBottom()) {
-            for (int i = 0; i < visibleRows(); i++) {
-                int index = i + scroll;
-                if (index >= rowCount()) {
-                    break;
-                }
-                int rowY = listTop() + i * ROW_H;
-                int rx = x + 6;
-                int bx2 = rx + W - 16 - BTN_W;
-                int bx1 = bx2 - BTN_W - 3;
-                if (hover(mouseX, mouseY, bx1, rowY + 4, BTN_W, BTN_H)) {
-                    return rowButton(index, 0);
-                }
-                if (hover(mouseX, mouseY, bx2, rowY + 4, BTN_W, BTN_H)) {
-                    return rowButton(index, 1);
-                }
-                if (mouseY >= rowY && mouseY < rowY + ROW_H - 2 && mouseX >= x + 4 && mouseX <= x + W - 4) {
-                    if (page == 0) {
-                        picked = index;
-                        return true;
-                    }
-                }
+        for (int i = 0; i < visibleRows(); i++) {
+            int index = i + scroll;
+            if (index >= rowCount()) {
+                break;
+            }
+            int ry = y + LIST_TOP + i * ROW_H;
+            int rx = x + 4;
+            int bx2 = rx + W - 12 - BTN_W;
+            int bx1 = bx2 - BTN_W - GAP;
+            if (hover(mouseX, mouseY, bx1, ry, BTN_W, BTN_H)) {
+                return rowButton(index, 0);
+            }
+            if (hover(mouseX, mouseY, bx2, ry, BTN_W, BTN_H)) {
+                return rowButton(index, 1);
+            }
+            if (mouseY >= ry && mouseY < ry + ROW_H - 2 && mouseX >= x + 2 && mouseX <= x + W - 2) {
+                selected = index;
+                click();
+                return true;
             }
         }
 
-        int by = y + H - BAR_H - 4;
-        int bx2 = x + W - 12 - BTN_W;
-        int bx1 = bx2 - BTN_W - 3;
-        if (hover(mouseX, mouseY, bx1, by + 2, BTN_W, BTN_H)) {
-            if (page == 2) {
-                addAccess(ACCESS_EDIT);
-            } else {
-                confirmRename();
+        if (barVisible()) {
+            int by = y + BAR_TOP;
+            int ix = x + 4;
+            int bx1 = ix + STRIP_W + GAP;
+            int bx2 = bx1 + BTN_W + GAP;
+            if (hover(mouseX, mouseY, bx1, by, BTN_W, BTN_H)) {
+                if (typing) {
+                    confirmRename();
+                } else {
+                    addAccess(ACCESS_EDIT);
+                }
+                return true;
             }
-            return true;
-        }
-        if (hover(mouseX, mouseY, bx2, by + 2, BTN_W, BTN_H)) {
-            if (page == 2) {
-                addAccess(ACCESS_OPERATE);
-            } else {
-                clearEditor();
+            if (hover(mouseX, mouseY, bx2, by, BTN_W, BTN_H)) {
+                if (typing) {
+                    stopTyping();
+                } else {
+                    addAccess(ACCESS_OPERATE);
+                }
+                return true;
             }
-            return true;
-        }
-        if (input != null && input.mouseClicked(mouseX, mouseY, button)) {
-            return true;
+            if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {
+                makeBox();
+                return true;
+            }
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     private boolean rowButton(int index, int which) {
+        selected = index;
         if (page == 0) {
             TerminalRow row = terminals.get(index);
             if (which == 1) {
                 send(new CenterRemoveTerminalPacket(center, row.pos()));
             } else {
-                openRename(row);
+                startRename(row);
             }
             return true;
         }
@@ -454,11 +500,10 @@ public class CenterScreen extends Screen {
             RemoteRow row = remotes.get(index);
             if (which == 1) {
                 send(new CenterForgetRemotePacket(center, row.name()));
-            } else if (picked >= 0) {
-                PacketDistributor.sendToServer(new RemoteSelectPacket(center, terminals.get(picked).pos()));
-                click();
             } else {
-                say("gui.dashpanels_remote_control.center.pick_terminal");
+                PacketDistributor.sendToServer(new RemoteSelectPacket(center,
+                        terminals.isEmpty() ? center : terminals.get(0).pos()));
+                click();
             }
             return true;
         }
@@ -476,25 +521,39 @@ public class CenterScreen extends Screen {
         return true;
     }
 
-    private void openRename(TerminalRow row) {
+    private void startRename(TerminalRow row) {
+        if (!canEdit) {
+            say("gui.dashpanels_remote_control.center.readonly");
+            return;
+        }
+        typing = true;
         renaming = row.pos();
-        input = new EditBox(font, left() + 10, top() + H - BAR_H - 4 + 5, 120, 12,
-                Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
-        input.setMaxLength(32);
-        input.setValue(row.name());
+        makeBox();
+        if (input != null) {
+            input.setValue(row.name());
+        }
+    }
+
+    private void makeBox() {
+        if (input == null) {
+            input = new EditBox(font, left() + WIN_X + 8, top() + WIN_Y + BAR_TOP + 5, STRIP_W - 8, 10,
+                    Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
+            input.setMaxLength(32);
+        }
         input.setFocused(true);
         setFocused(input);
     }
 
     private void confirmRename() {
-        if (input == null || renaming == null) {
+        if (!typing || input == null || renaming == null) {
+            stopTyping();
             return;
         }
         String name = input.getValue().trim();
         PacketDistributor.sendToServer(new RenameTerminalPacket(renaming, name));
         setPendingName(renaming, name);
         click();
-        clearEditor();
+        stopTyping();
     }
 
     private void addAccess(byte level) {
@@ -503,30 +562,32 @@ public class CenterScreen extends Screen {
             return;
         }
         if (input == null) {
-            input = new EditBox(font, left() + 10, top() + H - BAR_H - 4 + 5, 120, 12,
-                    Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
-            input.setMaxLength(32);
-            input.setFocused(true);
-            setFocused(input);
+            makeBox();
             return;
         }
         String name = input.getValue().trim();
         if (name.isEmpty()) {
             return;
         }
-        send(new CenterAccessPacket(center, CenterAccessPacket.ADD, name, (byte) 0, ""));
+        send(new CenterAccessPacket(center, CenterAccessPacket.ADD, name, level, ""));
         input.setValue("");
     }
 
-    private void clearEditor() {
+    private void stopTyping() {
+        typing = false;
         renaming = null;
+        if (input != null) {
+            input.setFocused(false);
+        }
         setFocused(null);
-        input = null;
+        if (page != 2) {
+            input = null;
+        }
     }
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (input != null && input.charTyped(codePoint, modifiers)) {
+        if (barVisible() && input != null && input.charTyped(codePoint, modifiers)) {
             return true;
         }
         return super.charTyped(codePoint, modifiers);
@@ -534,17 +595,17 @@ public class CenterScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (input != null) {
+        if (barVisible() && input != null) {
             if (keyCode == 257 || keyCode == 335) {
-                if (page == 2) {
-                    addAccess(ACCESS_EDIT);
-                } else {
+                if (typing) {
                     confirmRename();
+                } else {
+                    addAccess(ACCESS_EDIT);
                 }
                 return true;
             }
             if (keyCode == 256) {
-                clearEditor();
+                stopTyping();
                 return true;
             }
             if (input.keyPressed(keyCode, scanCode, modifiers)) {
@@ -584,6 +645,6 @@ public class CenterScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // The window is opaque enough on its own; dimming the world only muddied it.
+        // The window is painted opaque; dimming the world only muddied it.
     }
 }

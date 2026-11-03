@@ -66,5 +66,12 @@
   "gui.dashpanels_remote_control.center.panel_count": "%s 块面板",
   "gui.dashpanels_remote_control.center.remote_meta": "拥有者 %s · %s",
   "gui.dashpanels_remote_control.center.assign": "指定",
-  "gui.dashpanels_remote_control.center.pick_terminal": "先在终端页点一个终端"
+  "gui.dashpanels_remote_control.center.pick_terminal": "先在终端页点一个终端",
+  "gui.dashpanels_remote_control.center.pick_row": "在列表里点一行查看",
+  "gui.dashpanels_remote_control.center.field_name": "名字",
+  "gui.dashpanels_remote_control.center.field_pos": "坐标",
+  "gui.dashpanels_remote_control.center.field_panels": "面板数",
+  "gui.dashpanels_remote_control.center.field_id": "ID",
+  "gui.dashpanels_remote_control.center.field_owner": "拥有者",
+  "gui.dashpanels_remote_control.center.field_level": "权限"
 }

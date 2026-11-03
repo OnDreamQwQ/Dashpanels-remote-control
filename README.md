@@ -8,6 +8,26 @@
 - 别的附属加的模块自动支持，这个模组不需要认识它们；
 - 拖动旋转、Ctrl+滚轮缩放，点哪个模块就是点世界里那个模块。
 
+## 安装
+
+还没上 Modrinth / CurseForge，目前只有源码和本地构建的 jar，所以要手动放进整合包：
+
+1. **确认整合包能跑**：Minecraft **1.21.1** + NeoForge **21.1+** + [Dashpanels](https://modrinth.com/mod/dashpanels) **2.0+**。缺 Dashpanels 本模组会拒绝加载。
+2. **拿到 jar**：自己构建 `./gradlew build`，产物在 `build/libs/Dashpanels-Remote-Control-1.21.1-<版本>.jar`；或用别人构建好的同一个 jar。
+3. **放进 `mods/`**：就是 Dashpanels 那个 jar 所在的文件夹。**不要解压，也不要改名。**
+4. **（可选）控制台功能**：另装 Aeroworks 1.5.0+ 及其需要（Create 6.0.10+ / Sable）。不装则控制台功能自动消失，其余照常。
+5. **启动确认**：模组列表里应出现 `Dashpanels Remote Control`。没出现先查 NeoForge 版本是否 ≥ 21.1、Dashpanels 是否 ≥ 2.0。
+
+生存配方（3×3，自上而下）：
+
+| 物品 | 第一行 | 第二行 | 第三行 |
+| --- | --- | --- | --- |
+| 面板链接终端 | 铜 空 铜 | 铜 红石 铜 | 铁 空 铁 |
+| 面板遥控中心 | 铜 空 铜 | 铜 红石 铜 | 铁 空 铁 |
+| 面板遥控器 | 红石 紫水晶 红石 | 铁 铜 铁 | 铁 空 铁 |
+
+> 服务端/整合包作者：依赖项已写在 `META-INF/neoforge.mods.toml`（`dashpanels` 必需、`aeroworks` 可选），jar 丢进服务端 `mods/` 即可，无需额外配置。
+
 ## 依赖
 
 | 模组 | 版本 | 必需 |
