@@ -24,23 +24,23 @@ import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * The center's screen, blitted from the painted sheets at native scale - nothing is stretched.
- * Window: 218x244 at (2,1) of connect_center.png. Tabs: the three 28x13 strips at y=72 of
- * control_center_02.png (plain / hover / selected). Buttons: the 18x18 squares in
- * connect_center.png's right column (plain / hover / selected). Detail frame: 194x70 at (1,1) of
- * control_center_02.png. Edit strip: 134x18 at (1,86) of control_center_02.png.
+ * One window, a scrollable stack of cards, and Create's own icons for every action.
+ * <p>
+ * Everything a card has to say lives inside that card - the window frame is not drawn twice, and
+ * the card area scrolls under a scrollbar on the right, right under the sheet's button column.
  */
 public class CenterScreen extends Screen {
 
     private static final ResourceLocation WINDOW =
             ResourceLocation.fromNamespaceAndPath("dashpanels_remote_control", "textures/gui/connect_center.png");
-    private static final ResourceLocation WIDGETS =
+    private static final ResourceLocation STRIPS =
             ResourceLocation.fromNamespaceAndPath("dashpanels_remote_control", "textures/gui/control_center_02.png");
+    private static final ResourceLocation ICONS = ResourceLocation.fromNamespaceAndPath("create", "textures/gui/icons.png");
     private static final ResourceLocation HEADS =
             ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
 
     private static final int WIN_X = 2;
-    private static final int WIN_Y = 1;
+    private static final int WIN_Y = 2;
     private static final int W = 218;
     private static final int H = 244;
 
@@ -50,33 +50,44 @@ public class CenterScreen extends Screen {
     private static final int[] TAB_U = {1, 30, 59};
     private static final int TAB_V = 72;
 
-    private static final int BTN_W = 18;
-    private static final int BTN_H = 18;
-    private static final int[] BTN_V = {0, 19, 39};
-    private static final int BTN_U = 238;
-
-    private static final int FRAME_W = 194;
-    private static final int FRAME_H = 70;
-    private static final int FRAME_U = 1;
-    private static final int FRAME_V = 1;
+    private static final int SUQARE_U = 238;
+    private static final int[] SQUARE_V = {0, 19};
 
     private static final int STRIP_W = 134;
     private static final int STRIP_H = 18;
     private static final int STRIP_U = 1;
     private static final int STRIP_V = 86;
-    private static final int GAP = 3;
 
-    private static final int LIST_TOP = 42;
-    private static final int LIST_BOTTOM = 140;
-    private static final int ROW_H = 20;
-    private static final int FRAME_TOP = LIST_BOTTOM + 2;
-    private static final int BAR_TOP = FRAME_TOP + FRAME_H + 4;
+    private static final int CARD_X = 6;
+    private static final int CARD_W = 188;
+    private static final int CARD_H = 46;
+    private static final int CARD_GAP = 5;
+    private static final int LIST_TOP = 36;
+    private static final int LIST_BOTTOM = 210;
+    private static final int BAR_TOP = 214;
+
+    private static final int ICON_SIZE = 16;
+    private static final int ICON_TRASH_U = 16;
+    private static final int ICON_TRASH_V = 0;
+    private static final int ICON_LABEL_U = 64;
+    private static final int ICON_LABEL_V = 16;
+    private static final int ICON_ADD_U = 0;
+    private static final int ICON_ADD_V = 0;
+    private static final int ICON_CONFIRM_U = 0;
+    private static final int ICON_CONFIRM_V = 16;
+    private static final int ICON_CLOSE_U = 16;
+    private static final int ICON_CLOSE_V = 144;
 
     private static final int TEXT = 0xFFFFFFFF;
     private static final int DIM = 0xFFAFC9C4;
     private static final int ACCENT = 0xFFFFC400;
     private static final int ONLINE = 0xFF8BE88B;
     private static final int MUTED = 0xFF6F8681;
+    private static final int CARD_FILL = 0xC0006C58;
+    private static final int CARD_EDGE = 0xFF00C5A1;
+    private static final int CARD_PICKED = 0xC0008A70;
+    private static final int TRACK = 0xC000302A;
+    private static final int THUMB = 0xFF00C5A1;
 
     private static final byte ACCESS_OPERATE = PanelRemoteCenterBlockEntity.ACCESS_OPERATE;
     private static final byte ACCESS_EDIT = PanelRemoteCenterBlockEntity.ACCESS_EDIT;
@@ -90,7 +101,7 @@ public class CenterScreen extends Screen {
     private static int lastPage;
 
     private int page;
-    private int scroll;
+    private double scroll;
     private int selected = -1;
     private boolean canEdit;
     private boolean isOwner;
@@ -102,9 +113,10 @@ public class CenterScreen extends Screen {
     private final List<AccessRow> accesses = new ArrayList<>();
 
     private EditBox input;
-    /** True only while a rename is armed; the bar and its two buttons appear just for that. */
     private boolean typing;
     private BlockPos renaming;
+
+    private boolean draggingBar;
 
     private record TerminalRow(BlockPos pos, String name, int panels) {
     }
@@ -195,8 +207,14 @@ public class CenterScreen extends Screen {
         return (height - H) / 2 - WIN_Y;
     }
 
-    private int visibleRows() {
-        return Math.max(1, (LIST_BOTTOM - LIST_TOP) / ROW_H);
+    private int cardStep() {
+        return CARD_H + CARD_GAP;
+    }
+
+    private int maxScroll() {
+        int content = rowCount() * cardStep();
+        int view = LIST_BOTTOM - LIST_TOP;
+        return Math.max(0, content - view);
     }
 
     @Override
@@ -209,174 +227,120 @@ public class CenterScreen extends Screen {
         graphics.drawString(font, title, x + 8, y + 5, TEXT, false);
         if (!network.isEmpty()) {
             String id = "#" + network;
-            graphics.drawString(font, id, x + W - 8 - font.width(id), y + 5, DIM, false);
+            graphics.drawString(font, id, x + W - 10 - font.width(id), y + 5, DIM, false);
         }
 
         for (int i = 0; i < tabs.size(); i++) {
             int tx = x + 6 + i * (TAB_W + 1);
             int ty = y + TAB_Y;
             int state = i == page ? 2 : (hover(mouseX, mouseY, tx, ty, TAB_W, TAB_H) ? 1 : 0);
-            graphics.blit(WIDGETS, tx, ty, TAB_U[state], TAB_V, TAB_W, TAB_H);
+            graphics.blit(STRIPS, tx, ty, TAB_U[state], TAB_V, TAB_W, TAB_H);
             Component label = Component.translatable(tabs.get(i));
             graphics.drawString(font, label, tx + (TAB_W - font.width(label)) / 2, ty + 3,
                     state == 0 ? DIM : 0xFF0A291D, false);
         }
 
-        scroll = Mth.clamp(scroll, 0, Math.max(0, rowCount() - visibleRows()));
-        for (int i = 0; i < visibleRows(); i++) {
-            int index = i + scroll;
-            if (index >= rowCount()) {
-                break;
+        scroll = Mth.clamp(scroll, 0, maxScroll());
+        int cx = x + CARD_X;
+        for (int i = 0; i < rowCount(); i++) {
+            int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
+            if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
+                continue;
             }
-            drawRow(graphics, index, x + 4, y + LIST_TOP + i * ROW_H, mouseX, mouseY);
+            drawCard(graphics, i, cx, cy, mouseX, mouseY);
         }
         if (rowCount() == 0) {
             Component empty = Component.translatable("gui.dashpanels_remote_control.center.empty");
-            graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 12, DIM, false);
+            graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 16, DIM, false);
         }
 
-        drawDetails(graphics, x, y);
-        if (barVisible()) {
-            drawBar(graphics, x, y, mouseX, mouseY);
-        }
+        drawScrollbar(graphics, x, y);
+        drawBar(graphics, x, y, mouseX, mouseY);
     }
 
-    private void drawRow(GuiGraphics graphics, int index, int x, int y, int mouseX, int mouseY) {
-        boolean hovered = mouseX >= x && mouseX < x + W - 8 && mouseY >= y && mouseY < y + ROW_H - 2;
-        if (hovered || index == selected) {
-            graphics.fill(x - 1, y - 1, x + W - 9, y + ROW_H - 3,
-                    index == selected ? 0x40000000 : 0x20000000);
-        }
-        int bx2 = x + W - 12 - BTN_W;
-        int bx1 = bx2 - BTN_W - GAP;
+    private void drawCard(GuiGraphics graphics, int index, int cx, int cy, int mouseX, int mouseY) {
+        boolean picked = index == selected;
+        graphics.fill(cx, cy, cx + CARD_W, cy + CARD_H, picked ? CARD_PICKED : CARD_FILL);
+        graphics.renderOutline(cx, cy, CARD_W, CARD_H, CARD_EDGE);
+
+        int bx = cx + CARD_W - ICON_SIZE - 4;
         switch (page) {
             case 0 -> {
                 TerminalRow row = terminals.get(index);
                 String name = row.name().isEmpty()
                         ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
                         : row.name();
-                graphics.drawString(font, name, x + 2, y + 6, index == selected ? ACCENT : TEXT, false);
-                String meta = Component.translatable("gui.dashpanels_remote_control.center.panel_count",
-                        row.panels()).getString();
-                graphics.drawString(font, meta, x + 4 + font.width(name) + 6, y + 6, DIM, false);
-                square(graphics, bx1, y, "改", mouseX, mouseY, canEdit);
-                square(graphics, bx2, y, "断", mouseX, mouseY, canEdit);
+                graphics.drawString(font, name, cx + 6, cy + 5, picked ? ACCENT : TEXT, false);
+                graphics.drawString(font, row.pos().toShortString(), cx + 6, cy + 16, DIM, false);
+                graphics.drawString(font,
+                        Component.translatable("gui.dashpanels_remote_control.center.panel_count", row.panels()),
+                        cx + 6, cy + 27, DIM, false);
+                graphics.drawString(font, "#" + network, cx + 6, cy + 38, MUTED, false);
+                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, canEdit);
+                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             case 1 -> {
                 RemoteRow row = remotes.get(index);
-                graphics.drawString(font, row.name(), x + 2, y + 2, TEXT, false);
-                String meta = Component.translatable("gui.dashpanels_remote_control.center.remote_meta",
-                        row.owner().isEmpty() ? "-" : row.owner(),
-                        row.id().isEmpty() ? "-" : row.id()).getString();
-                graphics.drawString(font, meta, x + 2, y + 11, row.online() ? ONLINE : DIM, false);
-                square(graphics, bx1, y, "指", mouseX, mouseY, true);
-                square(graphics, bx2, y, "断", mouseX, mouseY, canEdit);
+                graphics.drawString(font, row.name(), cx + 6, cy + 5, picked ? ACCENT : TEXT, false);
+                graphics.drawString(font,
+                        Component.translatable("gui.dashpanels_remote_control.center.field_owner").getString()
+                                + " " + (row.owner().isEmpty() ? "-" : row.owner()),
+                        cx + 6, cy + 16, DIM, false);
+                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 6, cy + 27, MUTED, false);
+                graphics.drawString(font,
+                        Component.translatable(row.online()
+                                ? "gui.dashpanels_remote_control.center.online"
+                                : "gui.dashpanels_remote_control.center.offline"),
+                        cx + 6, cy + 38, row.online() ? ONLINE : MUTED, false);
+                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, true);
+                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             default -> {
                 AccessRow row = accesses.get(index);
-                graphics.blit(HEADS, x + 2, y + 5, 8, 8, 8, 8, 64, 64);
-                graphics.drawString(font, row.name(), x + 14, y + 2, TEXT, false);
-                String meta = Component.translatable(levelKey(row.level())).getString() + " · "
-                        + (row.id().isEmpty() ? "-" : row.id());
-                graphics.drawString(font, meta, x + 14, y + 11, DIM, false);
-                square(graphics, bx1, y, row.level() == ACCESS_EDIT ? "只" : "改", mouseX, mouseY, isOwner);
-                square(graphics, bx2, y, "删", mouseX, mouseY, isOwner);
+                graphics.blit(HEADS, cx + 6, cy + 4, 8, 8, 8, 8, 64, 64);
+                graphics.drawString(font, row.name(), cx + 18, cy + 5, picked ? ACCENT : TEXT, false);
+                graphics.drawString(font,
+                        Component.translatable(levelKey(row.level())), cx + 6, cy + 18, DIM, false);
+                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 6, cy + 29, MUTED, false);
+                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, isOwner);
+                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
             }
         }
     }
 
-    private void square(GuiGraphics graphics, int bx, int by, String glyph, int mouseX, int mouseY,
-                        boolean enabled) {
-        int state = enabled && hover(mouseX, mouseY, bx, by, BTN_W, BTN_H) ? 1 : 0;
-        graphics.blit(WINDOW, bx, by, BTN_U, BTN_V[state], BTN_W, BTN_H);
-        int color = enabled ? (state == 1 ? 0xFF0A291D : TEXT) : MUTED;
-        graphics.drawString(font, glyph, bx + (BTN_W - font.width(glyph)) / 2, by + 5, color, false);
-    }
-
-    private void drawDetails(GuiGraphics graphics, int x, int y) {
-        int fx = x + (W - FRAME_W) / 2;
-        int fy = y + FRAME_TOP;
-        graphics.blit(WIDGETS, fx, fy, FRAME_U, FRAME_V, FRAME_W, FRAME_H);
-
-        int tx = fx + 6;
-        int ty = fy + 7;
-        switch (page) {
-            case 0 -> {
-                if (selected >= 0 && selected < terminals.size()) {
-                    TerminalRow row = terminals.get(selected);
-                    line(graphics, tx, ty,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
-                            row.name().isEmpty()
-                                    ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed")
-                                    : Component.literal(row.name()));
-                    line(graphics, tx, ty + 14,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_pos"),
-                            Component.literal(row.pos().toShortString()));
-                    line(graphics, tx, ty + 28,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_panels"),
-                            Component.literal(String.valueOf(row.panels())));
-                    line(graphics, tx, ty + 42,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_id"),
-                            Component.literal(network.isEmpty() ? "-" : network));
-                } else {
-                    hint(graphics, fx, fy, Component.translatable(
-                            "gui.dashpanels_remote_control.center.pick_row"));
-                }
-            }
-            case 1 -> {
-                if (selected >= 0 && selected < remotes.size()) {
-                    RemoteRow row = remotes.get(selected);
-                    line(graphics, tx, ty,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
-                            Component.literal(row.name()));
-                    line(graphics, tx, ty + 14,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_owner"),
-                            Component.literal(row.owner().isEmpty() ? "-" : row.owner()));
-                    line(graphics, tx, ty + 28,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_id"),
-                            Component.literal(row.id().isEmpty() ? "-" : row.id()));
-                } else {
-                    hint(graphics, fx, fy, Component.translatable(
-                            "gui.dashpanels_remote_control.center.pick_row"));
-                }
-            }
-            default -> {
-                line(graphics, tx, ty,
-                        Component.translatable("gui.dashpanels_remote_control.center.field_owner"),
-                        Component.literal(ownerName.isEmpty() ? "-" : ownerName));
-                line(graphics, tx, ty + 14,
-                        Component.translatable("gui.dashpanels_remote_control.center.field_id"),
-                        Component.literal(network.isEmpty() ? "-" : network));
-                if (selected >= 0 && selected < accesses.size()) {
-                    AccessRow row = accesses.get(selected);
-                    line(graphics, tx, ty + 28,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_name"),
-                            Component.literal(row.name()));
-                    line(graphics, tx, ty + 42,
-                            Component.translatable("gui.dashpanels_remote_control.center.field_level"),
-                            Component.translatable(levelKey(row.level())));
-                }
-            }
+    private void icon(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
+                      boolean enabled) {
+        if (hover(mouseX, mouseY, bx, by, ICON_SIZE, ICON_SIZE)) {
+            graphics.fill(bx - 2, by - 2, bx + ICON_SIZE + 2, by + ICON_SIZE + 2, 0x50FFFFFF);
+        }
+        if (enabled) {
+            graphics.blit(ICONS, bx, by, u, v, ICON_SIZE, ICON_SIZE, 256, 256);
         }
     }
 
-    private void line(GuiGraphics graphics, int x, int y, Component label, Component value) {
-        graphics.drawString(font, label, x, y, DIM, false);
-        graphics.drawString(font, value, x + 58, y, TEXT, false);
-    }
+    private void drawScrollbar(GuiGraphics graphics, int x, int y) {
+        int trackX = x + CARD_X + CARD_W + 2;
+        int trackTop = y + LIST_TOP;
+        int trackHeight = LIST_BOTTOM - LIST_TOP;
+        graphics.fill(trackX, trackTop, trackX + 7, trackTop + trackHeight, TRACK);
+        graphics.renderOutline(trackX, trackTop, 7, trackHeight, CARD_EDGE);
 
-    private void hint(GuiGraphics graphics, int fx, int fy, Component text) {
-        graphics.drawString(font, text, fx + (FRAME_W - font.width(text)) / 2, fy + FRAME_H / 2 - 4, DIM, false);
-    }
-
-    private boolean barVisible() {
-        return typing || page == 2;
+        int content = rowCount() * cardStep();
+        int view = trackHeight;
+        if (content <= view) {
+            graphics.fill(trackX + 1, trackTop + 1, trackX + 6, trackTop + trackHeight - 1, THUMB);
+            return;
+        }
+        int thumbHeight = Math.max(12, view * view / content);
+        int span = trackHeight - thumbHeight - 2;
+        int thumbTop = trackTop + 1 + (int) Math.round(span * (scroll / (double) maxScroll()));
+        graphics.fill(trackX + 1, thumbTop, trackX + 6, thumbTop + thumbHeight, THUMB);
     }
 
     private void drawBar(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
         int by = y + BAR_TOP;
-        int ix = x + 4;
-        graphics.blit(WIDGETS, ix, by, STRIP_U, STRIP_V, STRIP_W, STRIP_H);
+        int ix = x + CARD_X;
+        graphics.blit(STRIPS, ix, by, STRIP_U, STRIP_V, STRIP_W, STRIP_H);
 
         if (input != null) {
             input.setX(ix + 4);
@@ -389,18 +353,18 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, hint, ix + 4, by + 5, DIM, false);
         }
 
-        int bx1 = ix + STRIP_W + GAP;
-        int bx2 = bx1 + BTN_W + GAP;
-        if (typing) {
-            square(graphics, bx1, by, "✓", mouseX, mouseY, true);
-            square(graphics, bx2, by, "✕", mouseX, mouseY, true);
-        } else {
-            square(graphics, bx1, by, "改", mouseX, mouseY, isOwner);
-            square(graphics, bx2, by, "只", mouseX, mouseY, isOwner);
-        }
-        if (!canEdit && !isOwner) {
-            Component ro = Component.translatable("gui.dashpanels_remote_control.center.readonly");
-            graphics.drawString(font, ro, bx2 + BTN_W + GAP, by + 5, MUTED, false);
+        int bx = ix + STRIP_W + 3;
+        square(graphics, bx, by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
+        square(graphics, bx + 19, by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
+        square(graphics, bx + 38, by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
+    }
+
+    private void square(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
+                        boolean enabled) {
+        int state = enabled && hover(mouseX, mouseY, bx, by, 18, 18) ? 1 : 0;
+        graphics.blit(WINDOW, bx, by, SUQARE_U, SQUARE_V[state], 18, 18);
+        if (enabled) {
+            graphics.blit(ICONS, bx + 1, by + 1, u, v, ICON_SIZE, ICON_SIZE, 256, 256);
         }
     }
 
@@ -434,76 +398,75 @@ public class CenterScreen extends Screen {
             }
         }
 
-        for (int i = 0; i < visibleRows(); i++) {
-            int index = i + scroll;
-            if (index >= rowCount()) {
-                break;
+        int cx = x + CARD_X;
+        for (int i = 0; i < rowCount(); i++) {
+            int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
+            if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
+                continue;
             }
-            int ry = y + LIST_TOP + i * ROW_H;
-            int rx = x + 4;
-            int bx2 = rx + W - 12 - BTN_W;
-            int bx1 = bx2 - BTN_W - GAP;
-            if (hover(mouseX, mouseY, bx1, ry, BTN_W, BTN_H)) {
-                return rowButton(index, 0);
+            int bx = cx + CARD_W - ICON_SIZE - 4;
+            if (hover(mouseX, mouseY, bx, cy + 5, ICON_SIZE, ICON_SIZE)
+                    || hover(mouseX, mouseY, bx, cy + 25, ICON_SIZE, ICON_SIZE)) {
+                return cardButton(i, mouseY < cy + 23);
             }
-            if (hover(mouseX, mouseY, bx2, ry, BTN_W, BTN_H)) {
-                return rowButton(index, 1);
-            }
-            if (mouseY >= ry && mouseY < ry + ROW_H - 2 && mouseX >= x + 2 && mouseX <= x + W - 2) {
-                selected = index;
+            if (hover(mouseX, mouseY, cx, cy, CARD_W, CARD_H)) {
+                selected = i;
                 click();
                 return true;
             }
         }
 
-        if (barVisible()) {
-            int by = y + BAR_TOP;
-            int ix = x + 4;
-            int bx1 = ix + STRIP_W + GAP;
-            int bx2 = bx1 + BTN_W + GAP;
-            if (hover(mouseX, mouseY, bx1, by, BTN_W, BTN_H)) {
-                if (typing) {
-                    confirmRename();
-                } else {
-                    addAccess(ACCESS_EDIT);
-                }
-                return true;
+        int by = y + BAR_TOP;
+        int ix = x + CARD_X;
+        int bx = ix + STRIP_W + 3;
+        if (hover(mouseX, mouseY, bx, by, 18, 18)) {
+            addAccess(ACCESS_EDIT);
+            return true;
+        }
+        if (hover(mouseX, mouseY, bx + 19, by, 18, 18)) {
+            if (typing) {
+                confirmRename();
+            } else {
+                addAccess(ACCESS_EDIT);
             }
-            if (hover(mouseX, mouseY, bx2, by, BTN_W, BTN_H)) {
-                if (typing) {
-                    stopTyping();
-                } else {
-                    addAccess(ACCESS_OPERATE);
-                }
-                return true;
-            }
-            if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {
-                makeBox();
-                return true;
-            }
+            return true;
+        }
+        if (hover(mouseX, mouseY, bx + 38, by, 18, 18)) {
+            stopTyping();
+            return true;
+        }
+        if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {
+            makeBox();
+            return true;
+        }
+
+        int barX = x + CARD_X + CARD_W + 2;
+        if (hover(mouseX, mouseY, barX, y + LIST_TOP, 7, LIST_BOTTOM - LIST_TOP)) {
+            draggingBar = true;
+            return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private boolean rowButton(int index, int which) {
+    private boolean cardButton(int index, boolean top) {
         selected = index;
         if (page == 0) {
             TerminalRow row = terminals.get(index);
-            if (which == 1) {
-                send(new CenterRemoveTerminalPacket(center, row.pos()));
-            } else {
+            if (top) {
                 startRename(row);
+            } else {
+                send(new CenterRemoveTerminalPacket(center, row.pos()));
             }
             return true;
         }
         if (page == 1) {
             RemoteRow row = remotes.get(index);
-            if (which == 1) {
-                send(new CenterForgetRemotePacket(center, row.name()));
-            } else {
+            if (top) {
                 PacketDistributor.sendToServer(new RemoteSelectPacket(center,
                         terminals.isEmpty() ? center : terminals.get(0).pos()));
                 click();
+            } else {
+                send(new CenterForgetRemotePacket(center, row.name()));
             }
             return true;
         }
@@ -512,11 +475,11 @@ public class CenterScreen extends Screen {
             say("gui.dashpanels_remote_control.center.not_owner");
             return true;
         }
-        if (which == 1) {
-            send(new CenterAccessPacket(center, CenterAccessPacket.REMOVE, row.name(), (byte) 0, row.id()));
-        } else {
+        if (top) {
             send(new CenterAccessPacket(center, CenterAccessPacket.SET_LEVEL, row.name(),
                     row.level() == ACCESS_EDIT ? ACCESS_OPERATE : ACCESS_EDIT, row.id()));
+        } else {
+            send(new CenterAccessPacket(center, CenterAccessPacket.REMOVE, row.name(), (byte) 0, row.id()));
         }
         return true;
     }
@@ -536,8 +499,8 @@ public class CenterScreen extends Screen {
 
     private void makeBox() {
         if (input == null) {
-            input = new EditBox(font, left() + WIN_X + 8, top() + WIN_Y + BAR_TOP + 5, STRIP_W - 8, 10,
-                    Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
+            input = new EditBox(font, left() + WIN_X + CARD_X + 4, top() + WIN_Y + BAR_TOP + 5,
+                    STRIP_W - 8, 10, Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
             input.setMaxLength(32);
         }
         input.setFocused(true);
@@ -587,7 +550,7 @@ public class CenterScreen extends Screen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (barVisible() && input != null && input.charTyped(codePoint, modifiers)) {
+        if (input != null && input.charTyped(codePoint, modifiers)) {
             return true;
         }
         return super.charTyped(codePoint, modifiers);
@@ -595,7 +558,7 @@ public class CenterScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (barVisible() && input != null) {
+        if (input != null) {
             if (keyCode == 257 || keyCode == 335) {
                 if (typing) {
                     confirmRename();
@@ -616,8 +579,26 @@ public class CenterScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (draggingBar) {
+            int trackTop = top() + WIN_Y + LIST_TOP;
+            int trackHeight = LIST_BOTTOM - LIST_TOP;
+            float ratio = (float) ((mouseY - trackTop) / Math.max(1.0, trackHeight));
+            scroll = Mth.clamp(ratio * maxScroll(), 0, maxScroll());
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        draggingBar = false;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Mth.clamp(scroll - (int) Math.signum(scrollY), 0, Math.max(0, rowCount() - visibleRows()));
+        scroll = Mth.clamp(scroll - scrollY * cardStep() / 2.0, 0, maxScroll());
         return true;
     }
 
