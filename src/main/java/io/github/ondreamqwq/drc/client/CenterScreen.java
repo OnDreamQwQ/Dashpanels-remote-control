@@ -100,8 +100,8 @@ public class CenterScreen extends Screen {
     private static final int ICON_ADD_V = 0;
     private static final int ICON_CONFIRM_U = 0;
     private static final int ICON_CONFIRM_V = 16;
-    private static final int ICON_TARGET_U = 48;
-    private static final int ICON_TARGET_V = 0;
+    private static final int ICON_TARGET_U = 32;
+    private static final int ICON_TARGET_V = 144;
     private static final int ICON_CLOSE_U = 128;
     private static final int ICON_CLOSE_V = 160;
 
@@ -342,8 +342,8 @@ public class CenterScreen extends Screen {
                         Component.translatable(levelKey(row.level())), cx + 10, cy + 30, DIM, false);
                 graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 10, cy + 42, MUTED, false);
                 icon(graphics, bx, cy + 12,
-                        row.level() == ACCESS_EDIT ? ICON_EDIT_U : ICON_OPERATE_U,
-                        row.level() == ACCESS_EDIT ? ICON_EDIT_V : ICON_OPERATE_V,
+                        row.level() == ACCESS_EDIT ? ICON_OPERATE_U : ICON_EDIT_U,
+                        row.level() == ACCESS_EDIT ? ICON_OPERATE_V : ICON_EDIT_V,
                         mouseX, mouseY, isOwner);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
             }
