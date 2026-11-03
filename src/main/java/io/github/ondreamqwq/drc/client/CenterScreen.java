@@ -271,6 +271,18 @@ public class CenterScreen extends Screen {
 
         scroll = Mth.clamp(scroll, 0, maxScroll());
         graphics.enableScissor(x + 1, y + CLIP_TOP, x + BODY_W, y + CLIP_BOTTOM);
+        int by = y + BAR_TOP;
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
+            click();
+            onClose();
+            return true;
+        }
+        if (typing || page == 2) {
+            Boolean handled = clickBar(mouseX, mouseY, x, by);
+            if (handled != null) {
+                return handled;
+            }
+        }
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
@@ -450,6 +462,18 @@ public class CenterScreen extends Screen {
             }
         }
 
+        int by = y + BAR_TOP;
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
+            click();
+            onClose();
+            return true;
+        }
+        if (typing || page == 2) {
+            Boolean handled = clickBar(mouseX, mouseY, x, by);
+            if (handled != null) {
+                return handled;
+            }
+        }
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
@@ -471,45 +495,6 @@ public class CenterScreen extends Screen {
             }
         }
 
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], y + BAR_TOP, 18, 18)) {
-            click();
-            onClose();
-            return true;
-        }
-        if (!typing && page != 2) {
-            return super.mouseClicked(mouseX, mouseY, button);
-        }
-        int by = y + BAR_TOP;
-        int ix = x + INPUT_X;
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[0], by, 18, 18)) {
-            if (typing) {
-                confirmRename();
-            } else if (page == 2) {
-                addAccess(ACCESS_EDIT);
-            } else {
-                addAccess(ACCESS_EDIT);
-            }
-            return true;
-        }
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[1], by, 18, 18)) {
-            if (typing) {
-                stopTyping();
-            } else if (page == 2) {
-                addAccess(ACCESS_OPERATE);
-            }
-            return true;
-        }
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
-            if (page == 2 && !typing) {
-                stopTyping();
-            }
-            return true;
-        }
-        if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {
-            click();
-            makeBox();
-            return true;
-        }
 
         int barX = x + TRACK_X;
         if (hover(mouseX, mouseY, barX, y + LIST_TOP, 5, LIST_BOTTOM - LIST_TOP)) {
@@ -519,6 +504,30 @@ public class CenterScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    private Boolean clickBar(double mouseX, double mouseY, int x, int by) {
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[0], by, 18, 18)) {
+            if (typing) {
+                confirmRename();
+            } else {
+                addAccess(ACCESS_EDIT);
+            }
+            return true;
+        }
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[1], by, 18, 18)) {
+            if (typing) {
+                stopTyping();
+            } else {
+                addAccess(ACCESS_OPERATE);
+            }
+            return true;
+        }
+        if (hover(mouseX, mouseY, x + INPUT_X, by, STRIP_W, STRIP_H)) {
+            click();
+            makeBox();
+            return true;
+        }
+        return null;
+    }
     private boolean cardButton(int index, boolean top) {
         selected = index;
         if (page == 0) {
