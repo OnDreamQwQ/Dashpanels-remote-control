@@ -45,6 +45,8 @@ public final class CenterInfo {
             CompoundTag one = new CompoundTag();
             one.putString("name", remote.name());
             one.putBoolean("online", level.getServer().getPlayerList().getPlayer(remote.player()) != null);
+            one.putString("owner", nameOf(level, center.owner()));
+            one.putString("id", shortId(remote.player()));
             remotes.add(one);
         }
         info.put("remotes", remotes);
@@ -57,6 +59,7 @@ public final class CenterInfo {
             CompoundTag one = new CompoundTag();
             one.putString("name", name);
             one.putInt("level_id", levelOfAccess);
+            one.putString("id", shortId(profileId(level, name)));
             access.add(one);
         });
         info.put("access", access);
@@ -69,6 +72,15 @@ public final class CenterInfo {
             return terminal.panels().size();
         }
         return -1;
+    }
+
+    private static String shortId(java.util.UUID uuid) {
+        return uuid == null ? "" : uuid.toString().substring(0, 8);
+    }
+
+    private static java.util.UUID profileId(ServerLevel level, String name) {
+        return level.getServer().getProfileCache().get(name)
+                .map(com.mojang.authlib.GameProfile::getId).orElse(null);
     }
 
     private static String nameOf(ServerLevel level, java.util.UUID uuid) {

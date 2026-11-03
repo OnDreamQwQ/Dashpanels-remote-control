@@ -55,5 +55,16 @@
   "gui.dashpanels_remote_control.center.rename_hint": "right click a terminal to rename it",
   "gui.dashpanels_remote_control.terminal.renamed": "renamed to %s",
   "gui.dashpanels_remote_control.remote.console_driving": "Console session · drag, wheel or keys · ESC to stop",
-  "gui.dashpanels_remote_control.center.remove_terminal": "Remove"
+  "gui.dashpanels_remote_control.center.remove_terminal": "Remove",
+  "gui.dashpanels_remote_control.center.rename": "Rename",
+  "gui.dashpanels_remote_control.center.forget": "Forget",
+  "gui.dashpanels_remote_control.center.remove_user": "Remove",
+  "gui.dashpanels_remote_control.center.to_edit": "Allow editing",
+  "gui.dashpanels_remote_control.center.to_operate": "Read only",
+  "gui.dashpanels_remote_control.center.confirm": "OK",
+  "gui.dashpanels_remote_control.center.cancel": "Cancel",
+  "gui.dashpanels_remote_control.center.panel_count": "%s panel(s)",
+  "gui.dashpanels_remote_control.center.remote_meta": "owner %s · %s",
+  "gui.dashpanels_remote_control.center.assign": "Assign",
+  "gui.dashpanels_remote_control.center.pick_terminal": "Pick a terminal on the terminal page first"
 }

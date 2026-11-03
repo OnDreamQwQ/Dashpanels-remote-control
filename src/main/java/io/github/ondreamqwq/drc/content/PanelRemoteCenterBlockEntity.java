@@ -486,4 +486,15 @@ public class PanelRemoteCenterBlockEntity extends BaseBlockEntity implements Net
             return null;
         }
     }
+    /** Drops a remote from the ledger; a remote that is gone should not keep a row forever. */
+    public boolean forgetRemote(String name) {
+        boolean removed = this.remotes.removeIf(remote -> remote.name().equals(name));
+        if (removed) {
+            setChanged();
+            if (this.level != null) {
+                this.level.sendBlockUpdated(this.worldPosition, getBlockState(), getBlockState(), 2);
+            }
+        }
+        return removed;
+    }
 }
