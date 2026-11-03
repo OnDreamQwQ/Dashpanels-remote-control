@@ -62,7 +62,7 @@ public class CenterScreen extends Screen {
     private static final int[] SQUARE_V = {0, 19};
 
     private static final int INPUT_X = 8;
-    private static final int STRIP_W = 134;
+    private static final int STRIP_W = 135;
     private static final int STRIP_H = 18;
     private static final int STRIP_U = 1;
     private static final int STRIP_V = 86;
@@ -75,10 +75,14 @@ public class CenterScreen extends Screen {
     private static final int CARD_GAP = 4;
     private static final int LIST_TOP = 44;
     private static final int LIST_BOTTOM = 214;
-    private static final int BAR_TOP = 220;
+    private static final int CLIP_TOP = 37;
+    private static final int CLIP_BOTTOM = 213;
+    private static final int BAR_TOP = 219;
 
     private static final int[] BOTTOM_BTN_X = {147, 169, 196};
     private static final int TRACK_X = 209;
+    private static final int TRACK_TOP = 37;
+    private static final int TRACK_BOTTOM = 201;
     private static final int THUMB_U = 238;
     private static final int THUMB_V = 57;
     private static final int THUMB_W = 7;
@@ -262,7 +266,7 @@ public class CenterScreen extends Screen {
         }
 
         scroll = Mth.clamp(scroll, 0, maxScroll());
-        graphics.enableScissor(x, y + LIST_TOP, x + BODY_W, y + LIST_BOTTOM);
+        graphics.enableScissor(x + 1, y + CLIP_TOP, x + BODY_W, y + CLIP_BOTTOM);
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
@@ -343,9 +347,9 @@ public class CenterScreen extends Screen {
     }
 
     private void drawScrollbar(GuiGraphics graphics, int x, int y) {
-        int trackX = x + TRACK_X - 1;
-        int trackTop = y + LIST_TOP + 1;
-        int trackHeight = LIST_BOTTOM - LIST_TOP - 2;
+        int trackX = x + TRACK_X - 2;
+        int trackTop = y + TRACK_TOP;
+        int trackHeight = TRACK_BOTTOM - TRACK_TOP;
         int span = trackHeight - THUMB_H;
         int thumbTop = trackTop;
         if (maxScroll() > 0 && span > 0) {
