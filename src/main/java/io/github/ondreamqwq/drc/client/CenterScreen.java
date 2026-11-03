@@ -237,10 +237,9 @@ public class CenterScreen extends Screen {
         int y = top() + WIN_Y;
 
         graphics.blit(WINDOW, x, y, WIN_X, WIN_Y, W, HDR_H);
-        graphics.blit(WINDOW, x, y + HDR_H - 1, WIN_X, WIN_Y + HDR_H - 1, BODY_W, BODY_H);
-        graphics.blit(WINDOW, x + BODY_W, y + HDR_H - 1, WIN_X + BODY_W, WIN_Y + HDR_H - 1, 1, BODY_H);
-        graphics.blit(WINDOW, x - 1 + WIN_X, y + HDR_H + BODY_H - 2, WIN_X, WIN_Y + HDR_H + BODY_H - 2,
-                BOTTOM_W, BOTTOM_H);
+        graphics.blit(WINDOW, x, y + HDR_H, WIN_X, WIN_Y + HDR_H, BODY_W, BODY_H);
+        graphics.blit(WINDOW, x + BODY_W, y + HDR_H, WIN_X + BODY_W - 1, WIN_Y + HDR_H, 1, BODY_H);
+        graphics.blit(WINDOW, x, y + HDR_H + BODY_H, WIN_X, WIN_Y + HDR_H + BODY_H, BOTTOM_W, BOTTOM_H);
 
         graphics.drawString(font, title, x + 8, y + 5, TEXT, false);
         if (!network.isEmpty()) {
