@@ -56,17 +56,17 @@ public class CenterScreen extends Screen {
     private static final int STRIP_W = 134;
     private static final int STRIP_H = 18;
     private static final int STRIP_U = 1;
-    private static final int STRIP_V = 86;
+    private static final int STRIP_V = 86;`r`n    private static final int FRAME_U = 1;`r`n    private static final int FRAME_V = 1;
 
-    private static final int CARD_X = 6;
-    private static final int CARD_W = 188;
-    private static final int CARD_H = 46;
-    private static final int CARD_GAP = 5;
-    private static final int LIST_TOP = 36;
-    private static final int LIST_BOTTOM = 210;
-    private static final int BAR_TOP = 214;
+    private static final int CARD_X = 8;
+    private static final int CARD_W = 194;
+    private static final int CARD_H = 70;
+    private static final int CARD_GAP = 4;
+    private static final int LIST_TOP = 43;
+    private static final int LIST_BOTTOM = 213;
+    private static final int BAR_TOP = 215;
 
-    private static final int ICON_SIZE = 16;
+    private static final int ICON_SIZE = 18;
     private static final int ICON_TRASH_U = 16;
     private static final int ICON_TRASH_V = 0;
     private static final int ICON_LABEL_U = 64;
@@ -255,89 +255,88 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 16, DIM, false);
         }
 
-        if (maxScroll() > 0) {
-            drawScrollbar(graphics, x, y);
-        }
+        drawScrollbar(graphics, x, y);
         drawBar(graphics, x, y, mouseX, mouseY);
     }
 
     private void drawCard(GuiGraphics graphics, int index, int cx, int cy, int mouseX, int mouseY) {
         boolean picked = index == selected;
-        graphics.fill(cx, cy, cx + CARD_W, cy + CARD_H, picked ? CARD_PICKED : CARD_FILL);
-        graphics.renderOutline(cx, cy, CARD_W, CARD_H, picked ? CARD_EDGE : CARD_EDGE_DIM);
+        graphics.blit(STRIPS, cx, cy, FRAME_U, FRAME_V, CARD_W, CARD_H);
+        if (picked) {
+            graphics.fill(cx + 1, cy + 1, cx + CARD_W - 1, cy + CARD_H - 1, 0x2800FFC4);
+        }
 
-        int bx = cx + CARD_W - ICON_SIZE - 4;
+        int bx = cx + CARD_W - ICON_SIZE - 7;
         switch (page) {
             case 0 -> {
                 TerminalRow row = terminals.get(index);
                 String name = row.name().isEmpty()
                         ? Component.translatable("gui.dashpanels_remote_control.terminal.unnamed").getString()
                         : row.name();
-                graphics.drawString(font, name, cx + 6, cy + 5, picked ? ACCENT : TEXT, false);
-                graphics.drawString(font, row.pos().toShortString(), cx + 6, cy + 16, DIM, false);
+                graphics.drawString(font, name, cx + 10, cy + 10, picked ? ACCENT : TEXT, false);
+                graphics.drawString(font, row.pos().toShortString(), cx + 10, cy + 28, DIM, false);
                 graphics.drawString(font,
                         Component.translatable("gui.dashpanels_remote_control.center.panel_count", row.panels()),
-                        cx + 6, cy + 27, DIM, false);
-                graphics.drawString(font, "#" + network, cx + 6, cy + 38, MUTED, false);
-                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, canEdit);
-                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
+                        cx + 10, cy + 40, DIM, false);
+                graphics.drawString(font, "#" + network, cx + 10, cy + 52, MUTED, false);
+                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, canEdit);
+                icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             case 1 -> {
                 RemoteRow row = remotes.get(index);
-                graphics.drawString(font, row.name(), cx + 6, cy + 5, picked ? ACCENT : TEXT, false);
+                graphics.drawString(font, row.name(), cx + 10, cy + 10, picked ? ACCENT : TEXT, false);
                 graphics.drawString(font,
                         Component.translatable("gui.dashpanels_remote_control.center.field_owner").getString()
                                 + " " + (row.owner().isEmpty() ? "-" : row.owner()),
-                        cx + 6, cy + 16, DIM, false);
-                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 6, cy + 27, MUTED, false);
+                        cx + 10, cy + 28, DIM, false);
+                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 10, cy + 40, MUTED, false);
                 graphics.drawString(font,
                         Component.translatable(row.online()
                                 ? "gui.dashpanels_remote_control.center.online"
                                 : "gui.dashpanels_remote_control.center.offline"),
-                        cx + 6, cy + 38, row.online() ? ONLINE : MUTED, false);
-                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, true);
-                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
+                        cx + 10, cy + 52, row.online() ? ONLINE : MUTED, false);
+                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, true);
+                icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             default -> {
                 AccessRow row = accesses.get(index);
-                graphics.blit(HEADS, cx + 6, cy + 4, 8, 8, 8, 8, 64, 64);
-                graphics.drawString(font, row.name(), cx + 18, cy + 5, picked ? ACCENT : TEXT, false);
+                graphics.blit(HEADS, cx + 10, cy + 8, 8, 8, 8, 8, 64, 64);
+                graphics.drawString(font, row.name(), cx + 22, cy + 10, picked ? ACCENT : TEXT, false);
                 graphics.drawString(font,
-                        Component.translatable(levelKey(row.level())), cx + 6, cy + 18, DIM, false);
-                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 6, cy + 29, MUTED, false);
-                icon(graphics, bx, cy + 5, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, isOwner);
-                icon(graphics, bx, cy + 25, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
+                        Component.translatable(levelKey(row.level())), cx + 10, cy + 30, DIM, false);
+                graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 10, cy + 42, MUTED, false);
+                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, isOwner);
+                icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
             }
         }
     }
 
     private void icon(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
                       boolean enabled) {
-        if (hover(mouseX, mouseY, bx, by, ICON_SIZE, ICON_SIZE)) {
-            graphics.fill(bx - 2, by - 2, bx + ICON_SIZE + 2, by + ICON_SIZE + 2, 0x50FFFFFF);
-        }
+        int state = enabled && hover(mouseX, mouseY, bx, by, ICON_SIZE, ICON_SIZE) ? 1 : 0;
+        graphics.blit(WINDOW, bx, by, SUQARE_U, SQUARE_V[state], ICON_SIZE, ICON_SIZE);
         if (enabled) {
-            graphics.blit(ICONS, bx, by, u, v, ICON_SIZE, ICON_SIZE, 256, 256);
+            graphics.blit(ICONS, bx + 1, by + 1, u, v, ICON_SIZE - 2, ICON_SIZE - 2, 256, 256);
         }
     }
 
     private void drawScrollbar(GuiGraphics graphics, int x, int y) {
-        int trackX = x + CARD_X + CARD_W + 2;
+        int trackX = x + CARD_X + CARD_W + 8;
         int trackTop = y + LIST_TOP;
         int trackHeight = LIST_BOTTOM - LIST_TOP;
-        graphics.fill(trackX, trackTop, trackX + 7, trackTop + trackHeight, TRACK);
-        graphics.renderOutline(trackX, trackTop, 7, trackHeight, CARD_EDGE);
+        graphics.fill(trackX, trackTop, trackX + 5, trackTop + trackHeight, TRACK);
+        graphics.renderOutline(trackX, trackTop, 5, trackHeight, CARD_EDGE);
 
         int content = rowCount() * cardStep();
         int view = trackHeight;
         if (content <= view) {
-            graphics.fill(trackX + 1, trackTop + 1, trackX + 6, trackTop + trackHeight - 1, THUMB);
+            graphics.fill(trackX + 1, trackTop + 1, trackX + 4, trackTop + trackHeight - 1, THUMB);
             return;
         }
         int thumbHeight = Math.max(12, view * view / content);
         int span = trackHeight - thumbHeight - 2;
         int thumbTop = trackTop + 1 + (int) Math.round(span * (scroll / (double) maxScroll()));
-        graphics.fill(trackX + 1, thumbTop, trackX + 6, thumbTop + thumbHeight, THUMB);
+        graphics.fill(trackX + 1, thumbTop, trackX + 4, thumbTop + thumbHeight, THUMB);
     }
 
     private void drawBar(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
@@ -407,10 +406,10 @@ public class CenterScreen extends Screen {
             if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
                 continue;
             }
-            int bx = cx + CARD_W - ICON_SIZE - 4;
-            if (hover(mouseX, mouseY, bx, cy + 5, ICON_SIZE, ICON_SIZE)
-                    || hover(mouseX, mouseY, bx, cy + 25, ICON_SIZE, ICON_SIZE)) {
-                return cardButton(i, mouseY < cy + 23);
+            int bx = cx + CARD_W - ICON_SIZE - 7;
+            if (hover(mouseX, mouseY, bx, cy + 12, ICON_SIZE, ICON_SIZE)
+                    || hover(mouseX, mouseY, bx, cy + 40, ICON_SIZE, ICON_SIZE)) {
+                return cardButton(i, mouseY < cy + 35);
             }
             if (hover(mouseX, mouseY, cx, cy, CARD_W, CARD_H)) {
                 selected = i;
@@ -443,8 +442,8 @@ public class CenterScreen extends Screen {
             return true;
         }
 
-        int barX = x + CARD_X + CARD_W + 2;
-        if (maxScroll() > 0 && hover(mouseX, mouseY, barX, y + LIST_TOP, 7, LIST_BOTTOM - LIST_TOP)) {
+        int barX = x + CARD_X + CARD_W + 8;
+        if (hover(mouseX, mouseY, barX, y + LIST_TOP, 5, LIST_BOTTOM - LIST_TOP)) {
             draggingBar = true;
             return true;
         }
@@ -502,9 +501,12 @@ public class CenterScreen extends Screen {
 
     private void makeBox() {
         if (input == null) {
-            input = new EditBox(font, left() + WIN_X + CARD_X + 4, top() + WIN_Y + BAR_TOP + 5,
-                    STRIP_W - 8, 10, Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
+            input = new EditBox(font, left() + WIN_X + CARD_X + 5, top() + WIN_Y + BAR_TOP + 5,
+                    STRIP_W - 10, 10, Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
             input.setMaxLength(32);
+            input.setBordered(false);
+            input.setTextColor(0xFFFFFFFF);
+            input.setTextColorUneditable(0xFFFFFFFF);
         }
         input.setFocused(true);
         setFocused(input);
