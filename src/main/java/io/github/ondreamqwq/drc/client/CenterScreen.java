@@ -85,6 +85,7 @@ public class CenterScreen extends Screen {
     private static final int MUTED = 0xFF6F8681;
     private static final int CARD_FILL = 0xC0006C58;
     private static final int CARD_EDGE = 0xFF00C5A1;
+    private static final int CARD_EDGE_DIM = 0x8000C5A1;
     private static final int CARD_PICKED = 0xC0008A70;
     private static final int TRACK = 0xC000302A;
     private static final int THUMB = 0xFF00C5A1;
@@ -254,14 +255,16 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 16, DIM, false);
         }
 
-        drawScrollbar(graphics, x, y);
+        if (maxScroll() > 0) {
+            drawScrollbar(graphics, x, y);
+        }
         drawBar(graphics, x, y, mouseX, mouseY);
     }
 
     private void drawCard(GuiGraphics graphics, int index, int cx, int cy, int mouseX, int mouseY) {
         boolean picked = index == selected;
         graphics.fill(cx, cy, cx + CARD_W, cy + CARD_H, picked ? CARD_PICKED : CARD_FILL);
-        graphics.renderOutline(cx, cy, CARD_W, CARD_H, CARD_EDGE);
+        graphics.renderOutline(cx, cy, CARD_W, CARD_H, picked ? CARD_EDGE : CARD_EDGE_DIM);
 
         int bx = cx + CARD_W - ICON_SIZE - 4;
         switch (page) {
@@ -441,7 +444,7 @@ public class CenterScreen extends Screen {
         }
 
         int barX = x + CARD_X + CARD_W + 2;
-        if (hover(mouseX, mouseY, barX, y + LIST_TOP, 7, LIST_BOTTOM - LIST_TOP)) {
+        if (maxScroll() > 0 && hover(mouseX, mouseY, barX, y + LIST_TOP, 7, LIST_BOTTOM - LIST_TOP)) {
             draggingBar = true;
             return true;
         }
