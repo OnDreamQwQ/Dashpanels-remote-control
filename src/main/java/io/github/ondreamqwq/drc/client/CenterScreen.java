@@ -271,18 +271,6 @@ public class CenterScreen extends Screen {
 
         scroll = Mth.clamp(scroll, 0, maxScroll());
         graphics.enableScissor(x + 1, y + CLIP_TOP, x + BODY_W, y + CLIP_BOTTOM);
-        int by = y + BAR_TOP;
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
-            click();
-            onClose();
-            return true;
-        }
-        if (typing || page == 2) {
-            Boolean handled = clickBar(mouseX, mouseY, x, by);
-            if (handled != null) {
-                return handled;
-            }
-        }
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
