@@ -90,14 +90,18 @@ public class CenterScreen extends Screen {
     private static final int ICON_SIZE = 18;
     private static final int ICON_TRASH_U = 16;
     private static final int ICON_TRASH_V = 0;
-    private static final int ICON_LABEL_U = 64;
-    private static final int ICON_LABEL_V = 16;
+    private static final int ICON_RENAME_U = 0;
+    private static final int ICON_RENAME_V = 112;
+    private static final int ICON_EDIT_U = 0;
+    private static final int ICON_EDIT_V = 160;
+    private static final int ICON_OPERATE_U = 16;
+    private static final int ICON_OPERATE_V = 160;
     private static final int ICON_ADD_U = 0;
     private static final int ICON_ADD_V = 0;
     private static final int ICON_CONFIRM_U = 0;
     private static final int ICON_CONFIRM_V = 16;
-    private static final int ICON_CLOSE_U = 16;
-    private static final int ICON_CLOSE_V = 144;
+    private static final int ICON_CLOSE_U = 128;
+    private static final int ICON_CLOSE_V = 160;
 
     private static final int TEXT = 0xFFFFFFFF;
     private static final int DIM = 0xFFAFC9C4;
@@ -282,7 +286,9 @@ public class CenterScreen extends Screen {
         graphics.disableScissor();
 
         drawScrollbar(graphics, x, y);
-        drawBar(graphics, x, y, mouseX, mouseY);
+        if (typing || page == 2) {
+            drawBar(graphics, x, y, mouseX, mouseY);
+        }
     }
 
     private void drawCard(GuiGraphics graphics, int index, int cx, int cy, int mouseX, int mouseY) {
@@ -305,7 +311,7 @@ public class CenterScreen extends Screen {
                         Component.translatable("gui.dashpanels_remote_control.center.panel_count", row.panels()),
                         cx + 10, cy + 40, DIM, false);
                 graphics.drawString(font, "#" + network, cx + 10, cy + 52, MUTED, false);
-                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, canEdit);
+                renameIcon(graphics, bx, cy + 12, mouseX, mouseY, canEdit);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             case 1 -> {
@@ -321,7 +327,7 @@ public class CenterScreen extends Screen {
                                 ? "gui.dashpanels_remote_control.center.online"
                                 : "gui.dashpanels_remote_control.center.offline"),
                         cx + 10, cy + 52, row.online() ? ONLINE : MUTED, false);
-                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, true);
+                icon(graphics, bx, cy + 12, 64, 16, mouseX, mouseY, true);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             default -> {
@@ -331,7 +337,10 @@ public class CenterScreen extends Screen {
                 graphics.drawString(font,
                         Component.translatable(levelKey(row.level())), cx + 10, cy + 30, DIM, false);
                 graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 10, cy + 42, MUTED, false);
-                icon(graphics, bx, cy + 12, ICON_LABEL_U, ICON_LABEL_V, mouseX, mouseY, isOwner);
+                icon(graphics, bx, cy + 12,
+                        row.level() == ACCESS_EDIT ? ICON_OPERATE_U : ICON_EDIT_U,
+                        row.level() == ACCESS_EDIT ? ICON_OPERATE_V : ICON_EDIT_V,
+                        mouseX, mouseY, isOwner);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
             }
         }
@@ -343,6 +352,15 @@ public class CenterScreen extends Screen {
         graphics.blit(WINDOW, bx, by, SUQARE_U, SQUARE_V[state], ICON_SIZE, ICON_SIZE);
         if (enabled) {
             graphics.blit(ICONS, bx + 1, by + 1, u, v, ICON_SIZE - 2, ICON_SIZE - 2, 256, 256);
+        }
+    }
+
+    private void renameIcon(GuiGraphics graphics, int bx, int by, int mouseX, int mouseY, boolean enabled) {
+        int state = enabled && hover(mouseX, mouseY, bx, by, ICON_SIZE, ICON_SIZE) ? 1 : 0;
+        graphics.blit(WINDOW, bx, by, SUQARE_U, SQUARE_V[state], ICON_SIZE, ICON_SIZE);
+        if (enabled) {
+            graphics.blit(STRIPS, bx + 1, by + 1, ICON_RENAME_U, ICON_RENAME_V,
+                    ICON_SIZE - 2, ICON_SIZE - 2, 256, 256);
         }
     }
 
@@ -374,9 +392,21 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, hint, ix + 4, by + 4, DIM, false);
         }
 
+        if (typing) {
+            widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
+            widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
+            widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, false);
+            return;
+        }
+        if (page == 2) {
+            widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_EDIT_U, ICON_EDIT_V, mouseX, mouseY, isOwner);
+            widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_OPERATE_U, ICON_OPERATE_V, mouseX, mouseY, isOwner);
+            widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, isOwner);
+            return;
+        }
         widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
-        widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
-        widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
+        widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, false);
+        widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, false);
     }
 
     private void widgetButton(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
@@ -436,22 +466,33 @@ public class CenterScreen extends Screen {
             }
         }
 
+        if (!typing && page != 2) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
         int by = y + BAR_TOP;
         int ix = x + INPUT_X;
         if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[0], by, 18, 18)) {
-            addAccess(ACCESS_EDIT);
-            return true;
-        }
-        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[1], by, 18, 18)) {
             if (typing) {
                 confirmRename();
+            } else if (page == 2) {
+                addAccess(ACCESS_EDIT);
             } else {
                 addAccess(ACCESS_EDIT);
             }
             return true;
         }
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[1], by, 18, 18)) {
+            if (typing) {
+                stopTyping();
+            } else if (page == 2) {
+                addAccess(ACCESS_OPERATE);
+            }
+            return true;
+        }
         if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
-            stopTyping();
+            if (page == 2 && !typing) {
+                stopTyping();
+            }
             return true;
         }
         if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {

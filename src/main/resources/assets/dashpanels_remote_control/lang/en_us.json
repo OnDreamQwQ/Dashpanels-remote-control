@@ -5,7 +5,7 @@
   "gui.dashpanels_remote_control.center.add_operate": "+ operate",
   "gui.dashpanels_remote_control.center.consoles": "Consoles",
   "gui.dashpanels_remote_control.center.empty": "Nothing here yet",
-  "gui.dashpanels_remote_control.center.name_hint": "player name",
+  "gui.dashpanels_remote_control.center.name_hint": "Enter a username",
   "gui.dashpanels_remote_control.center.not_owner": "Only the owner can change this",
   "gui.dashpanels_remote_control.center.panels": "Panels",
   "gui.dashpanels_remote_control.center.players": "Players",

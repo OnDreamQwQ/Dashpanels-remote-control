@@ -5,7 +5,7 @@
   "gui.dashpanels_remote_control.center.add_operate": "+ 可操作",
   "gui.dashpanels_remote_control.center.consoles": "控制台",
   "gui.dashpanels_remote_control.center.empty": "这里还没有东西",
-  "gui.dashpanels_remote_control.center.name_hint": "玩家名",
+  "gui.dashpanels_remote_control.center.name_hint": "输入用户名",
   "gui.dashpanels_remote_control.center.not_owner": "只有所有者能改权限",
   "gui.dashpanels_remote_control.center.panels": "面板",
   "gui.dashpanels_remote_control.center.players": "玩家",
