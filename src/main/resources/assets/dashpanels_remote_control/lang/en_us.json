@@ -66,12 +66,12 @@
   "gui.dashpanels_remote_control.center.panel_count": "%s panel(s)",
   "gui.dashpanels_remote_control.center.remote_meta": "owner %s · %s",
   "gui.dashpanels_remote_control.center.assign": "Assign",
-  "gui.dashpanels_remote_control.center.pick_terminal": "Pick a terminal on the terminal page first",
   "gui.dashpanels_remote_control.center.pick_row": "Click a row to inspect it",
   "gui.dashpanels_remote_control.center.field_name": "Name",
   "gui.dashpanels_remote_control.center.field_pos": "Position",
   "gui.dashpanels_remote_control.center.field_panels": "Panels",
   "gui.dashpanels_remote_control.center.field_id": "ID",
   "gui.dashpanels_remote_control.center.field_owner": "Owner",
-  "gui.dashpanels_remote_control.center.field_level": "Access"
+  "gui.dashpanels_remote_control.center.field_level": "Access",
+  "gui.dashpanels_remote_control.center.pick_terminal": "Pick a terminal"
 }

@@ -236,6 +236,11 @@ public class PanelRemoteScreen extends Screen {
                 for (int i = 0; i < pages.size(); i++) {
                     if (remembered.equals(pages.get(i).terminal())) {
                         page = i;
+                        // one remote, one terminal: the picker in the center pins the remote to it
+                        java.util.List<Page> pinned = new java.util.ArrayList<>();
+                        pinned.add(pages.get(i));
+                        pages = pinned;
+                        page = 0;
                         break;
                     }
                 }

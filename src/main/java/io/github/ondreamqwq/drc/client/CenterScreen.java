@@ -100,6 +100,8 @@ public class CenterScreen extends Screen {
     private static final int ICON_ADD_V = 0;
     private static final int ICON_CONFIRM_U = 0;
     private static final int ICON_CONFIRM_V = 16;
+    private static final int ICON_TARGET_U = 48;
+    private static final int ICON_TARGET_V = 0;
     private static final int ICON_CLOSE_U = 128;
     private static final int ICON_CLOSE_V = 160;
 
@@ -144,7 +146,7 @@ public class CenterScreen extends Screen {
 
     private boolean draggingBar;
 
-    private record TerminalRow(BlockPos pos, String name, int panels) {
+    record TerminalRow(BlockPos pos, String name, int panels) {
     }
 
     private record RemoteRow(String name, String owner, boolean online, String id) {
@@ -239,7 +241,7 @@ public class CenterScreen extends Screen {
 
     private int maxScroll() {
         int content = rowCount() * cardStep();
-        int view = LIST_BOTTOM - LIST_TOP;
+        int view = CLIP_BOTTOM - CLIP_TOP;
         return Math.max(0, content - view);
     }
 
@@ -275,9 +277,6 @@ public class CenterScreen extends Screen {
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
             if (cy + CARD_H <= y + CLIP_TOP || cy >= y + CLIP_BOTTOM) {
-                continue;
-            }
-            if (mouseY < y + CLIP_TOP || mouseY >= y + CLIP_BOTTOM) {
                 continue;
             }
             drawCard(graphics, i, cx, cy, mouseX, mouseY);
@@ -332,7 +331,7 @@ public class CenterScreen extends Screen {
                                 ? "gui.dashpanels_remote_control.center.online"
                                 : "gui.dashpanels_remote_control.center.offline"),
                         cx + 10, cy + 52, row.online() ? ONLINE : MUTED, false);
-                icon(graphics, bx, cy + 12, 64, 16, mouseX, mouseY, true);
+                icon(graphics, bx, cy + 12, ICON_TARGET_U, ICON_TARGET_V, mouseX, mouseY, true);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, canEdit);
             }
             default -> {
@@ -343,12 +342,16 @@ public class CenterScreen extends Screen {
                         Component.translatable(levelKey(row.level())), cx + 10, cy + 30, DIM, false);
                 graphics.drawString(font, row.id().isEmpty() ? "-" : row.id(), cx + 10, cy + 42, MUTED, false);
                 icon(graphics, bx, cy + 12,
-                        row.level() == ACCESS_EDIT ? ICON_OPERATE_U : ICON_EDIT_U,
-                        row.level() == ACCESS_EDIT ? ICON_OPERATE_V : ICON_EDIT_V,
+                        row.level() == ACCESS_EDIT ? ICON_EDIT_U : ICON_OPERATE_U,
+                        row.level() == ACCESS_EDIT ? ICON_EDIT_V : ICON_OPERATE_V,
                         mouseX, mouseY, isOwner);
                 icon(graphics, bx, cy + 40, ICON_TRASH_U, ICON_TRASH_V, mouseX, mouseY, isOwner);
             }
         }
+    }
+
+    java.util.List<TerminalRow> terminalRows() {
+        return java.util.List.copyOf(terminals);
     }
 
     private void icon(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
@@ -530,9 +533,10 @@ public class CenterScreen extends Screen {
         if (page == 1) {
             RemoteRow row = remotes.get(index);
             if (top) {
-                PacketDistributor.sendToServer(new RemoteSelectPacket(center,
-                        terminals.isEmpty() ? center : terminals.get(0).pos()));
                 click();
+                if (minecraft != null) {
+                    minecraft.setScreen(new TerminalPickerScreen(this, center, terminalRows()));
+                }
             } else {
                 send(new CenterForgetRemotePacket(center, row.name()));
             }
