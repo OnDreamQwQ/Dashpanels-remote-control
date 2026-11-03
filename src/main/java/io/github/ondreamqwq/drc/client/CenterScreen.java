@@ -36,13 +36,21 @@ public class CenterScreen extends Screen {
     private static final ResourceLocation STRIPS =
             ResourceLocation.fromNamespaceAndPath("dashpanels_remote_control", "textures/gui/control_center_02.png");
     private static final ResourceLocation ICONS = ResourceLocation.fromNamespaceAndPath("create", "textures/gui/icons.png");
+    private static final ResourceLocation WIDGETS =
+            ResourceLocation.fromNamespaceAndPath("dashpanels_remote_control", "textures/gui/widgets.png");
     private static final ResourceLocation HEADS =
             ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
 
-    private static final int WIN_X = 2;
-    private static final int WIN_Y = 2;
-    private static final int W = 218;
+    private static final int WIN_X = 1;
+    private static final int WIN_Y = 1;
+    private static final int W = 220;
     private static final int H = 244;
+
+    private static final int HDR_H = 37;
+    private static final int BODY_W = 219;
+    private static final int BODY_H = 177;
+    private static final int BOTTOM_W = 227;
+    private static final int BOTTOM_H = 30;
 
     private static final int TAB_W = 28;
     private static final int TAB_H = 13;
@@ -53,6 +61,7 @@ public class CenterScreen extends Screen {
     private static final int SUQARE_U = 238;
     private static final int[] SQUARE_V = {0, 19};
 
+    private static final int INPUT_X = 8;
     private static final int STRIP_W = 134;
     private static final int STRIP_H = 18;
     private static final int STRIP_U = 1;
@@ -60,14 +69,16 @@ public class CenterScreen extends Screen {
     private static final int FRAME_U = 1;
     private static final int FRAME_V = 1;
 
-    private static final int CARD_X = 8;
+    private static final int CARD_X = 9;
     private static final int CARD_W = 194;
     private static final int CARD_H = 70;
     private static final int CARD_GAP = 4;
-    private static final int LIST_TOP = 43;
-    private static final int LIST_BOTTOM = 213;
-    private static final int BAR_TOP = 215;
+    private static final int LIST_TOP = 44;
+    private static final int LIST_BOTTOM = 214;
+    private static final int BAR_TOP = 220;
 
+    private static final int[] BOTTOM_BTN_X = {147, 169, 196};
+    private static final int TRACK_X = 209;
     private static final int ICON_SIZE = 18;
     private static final int ICON_TRASH_U = 16;
     private static final int ICON_TRASH_V = 0;
@@ -225,7 +236,11 @@ public class CenterScreen extends Screen {
         int x = left() + WIN_X;
         int y = top() + WIN_Y;
 
-        graphics.blit(WINDOW, x, y, WIN_X, WIN_Y, W, H);
+        graphics.blit(WINDOW, x, y, WIN_X, WIN_Y, W, HDR_H);
+        graphics.blit(WINDOW, x, y + HDR_H - 1, WIN_X, WIN_Y + HDR_H - 1, BODY_W, BODY_H);
+        graphics.blit(WINDOW, x + BODY_W, y + HDR_H - 1, WIN_X + BODY_W, WIN_Y + HDR_H - 1, 1, BODY_H);
+        graphics.blit(WINDOW, x - 1 + WIN_X, y + HDR_H + BODY_H - 2, WIN_X, WIN_Y + HDR_H + BODY_H - 2,
+                BOTTOM_W, BOTTOM_H);
 
         graphics.drawString(font, title, x + 8, y + 5, TEXT, false);
         if (!network.isEmpty()) {
@@ -323,27 +338,23 @@ public class CenterScreen extends Screen {
     }
 
     private void drawScrollbar(GuiGraphics graphics, int x, int y) {
-        int trackX = x + CARD_X + CARD_W + 8;
+        int trackX = x + TRACK_X;
         int trackTop = y + LIST_TOP;
         int trackHeight = LIST_BOTTOM - LIST_TOP;
-        graphics.fill(trackX, trackTop, trackX + 5, trackTop + trackHeight, TRACK);
-        graphics.renderOutline(trackX, trackTop, 5, trackHeight, CARD_EDGE);
-
         int content = rowCount() * cardStep();
-        int view = trackHeight;
-        if (content <= view) {
-            graphics.fill(trackX + 1, trackTop + 1, trackX + 4, trackTop + trackHeight - 1, THUMB);
+        if (content <= trackHeight) {
+            graphics.fill(trackX, trackTop, trackX + 5, trackTop + trackHeight, THUMB);
             return;
         }
-        int thumbHeight = Math.max(12, view * view / content);
-        int span = trackHeight - thumbHeight - 2;
-        int thumbTop = trackTop + 1 + (int) Math.round(span * (scroll / (double) maxScroll()));
-        graphics.fill(trackX + 1, thumbTop, trackX + 4, thumbTop + thumbHeight, THUMB);
+        int thumbHeight = Math.max(13, trackHeight * trackHeight / content);
+        int span = trackHeight - thumbHeight;
+        int thumbTop = trackTop + (int) Math.round(span * (scroll / (double) maxScroll()));
+        graphics.fill(trackX, thumbTop, trackX + 5, thumbTop + thumbHeight, THUMB);
     }
 
     private void drawBar(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
         int by = y + BAR_TOP;
-        int ix = x + CARD_X;
+        int ix = x + INPUT_X;
         graphics.blit(STRIPS, ix, by, STRIP_U, STRIP_V, STRIP_W, STRIP_H);
 
         if (input != null) {
@@ -357,16 +368,17 @@ public class CenterScreen extends Screen {
             graphics.drawString(font, hint, ix + 4, by + 5, DIM, false);
         }
 
-        int bx = ix + STRIP_W + 3;
-        square(graphics, bx, by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
-        square(graphics, bx + 19, by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
-        square(graphics, bx + 38, by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
+        widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
+        widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
+        widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
     }
 
-    private void square(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
-                        boolean enabled) {
-        int state = enabled && hover(mouseX, mouseY, bx, by, 18, 18) ? 1 : 0;
-        graphics.blit(WINDOW, bx, by, SUQARE_U, SQUARE_V[state], 18, 18);
+    private void widgetButton(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
+                              boolean enabled) {
+        boolean hot = enabled && hover(mouseX, mouseY, bx, by, 18, 18);
+        int wu = hot ? 18 : 0;
+        int wv = hot ? 0 : 18;
+        graphics.blit(WIDGETS, bx, by, wu, wv, 18, 18, 256, 256);
         if (enabled) {
             graphics.blit(ICONS, bx + 1, by + 1, u, v, ICON_SIZE, ICON_SIZE, 256, 256);
         }
@@ -421,13 +433,12 @@ public class CenterScreen extends Screen {
         }
 
         int by = y + BAR_TOP;
-        int ix = x + CARD_X;
-        int bx = ix + STRIP_W + 3;
-        if (hover(mouseX, mouseY, bx, by, 18, 18)) {
+        int ix = x + INPUT_X;
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[0], by, 18, 18)) {
             addAccess(ACCESS_EDIT);
             return true;
         }
-        if (hover(mouseX, mouseY, bx + 19, by, 18, 18)) {
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[1], by, 18, 18)) {
             if (typing) {
                 confirmRename();
             } else {
@@ -435,7 +446,7 @@ public class CenterScreen extends Screen {
             }
             return true;
         }
-        if (hover(mouseX, mouseY, bx + 38, by, 18, 18)) {
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], by, 18, 18)) {
             stopTyping();
             return true;
         }
@@ -444,7 +455,7 @@ public class CenterScreen extends Screen {
             return true;
         }
 
-        int barX = x + CARD_X + CARD_W + 8;
+        int barX = x + TRACK_X;
         if (hover(mouseX, mouseY, barX, y + LIST_TOP, 5, LIST_BOTTOM - LIST_TOP)) {
             draggingBar = true;
             return true;
@@ -503,7 +514,7 @@ public class CenterScreen extends Screen {
 
     private void makeBox() {
         if (input == null) {
-            input = new EditBox(font, left() + WIN_X + CARD_X + 5, top() + WIN_Y + BAR_TOP + 5,
+            input = new EditBox(font, left() + WIN_X + INPUT_X + 5, top() + WIN_Y + BAR_TOP + 5,
                     STRIP_W - 10, 10, Component.translatable("gui.dashpanels_remote_control.center.name_hint"));
             input.setMaxLength(32);
             input.setBordered(false);
