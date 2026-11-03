@@ -56,7 +56,9 @@ public class CenterScreen extends Screen {
     private static final int STRIP_W = 134;
     private static final int STRIP_H = 18;
     private static final int STRIP_U = 1;
-    private static final int STRIP_V = 86;`r`n    private static final int FRAME_U = 1;`r`n    private static final int FRAME_V = 1;
+    private static final int STRIP_V = 86;
+    private static final int FRAME_U = 1;
+    private static final int FRAME_V = 1;
 
     private static final int CARD_X = 8;
     private static final int CARD_W = 194;
