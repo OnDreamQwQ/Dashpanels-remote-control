@@ -2,14 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "category": "redstone",
   "pattern": [
-    " C ",
-    "CRC",
-    " I "
+    " A ",
+    " P "
   ],
   "key": {
-    "C": { "item": "minecraft:copper_ingot" },
-    "R": { "item": "minecraft:redstone" },
-    "I": { "item": "minecraft:iron_ingot" }
+    "A": { "item": "create:transmitter" },
+    "P": { "item": "dashpanels:control_panel" }
   },
   "result": {
     "id": "dashpanels_remote_control:panel_link_terminal",

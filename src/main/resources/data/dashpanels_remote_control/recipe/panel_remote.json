@@ -2,15 +2,12 @@
   "type": "minecraft:crafting_shaped",
   "category": "redstone",
   "pattern": [
-    "RAR",
-    "ICI",
-    " I "
+    " T ",
+    " L "
   ],
   "key": {
-    "R": { "item": "minecraft:redstone" },
-    "A": { "item": "minecraft:amethyst_shard" },
-    "I": { "item": "minecraft:iron_ingot" },
-    "C": { "item": "minecraft:copper_ingot" }
+    "T": { "item": "dashpanels_remote_control:panel_link_terminal" },
+    "L": { "item": "create:linked_controller" }
   },
   "result": {
     "id": "dashpanels_remote_control:panel_remote",
