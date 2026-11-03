@@ -28,17 +28,17 @@ public class TerminalPickerScreen extends Screen {
     private static final int H = 158;
     private static final int ROW_X = 13;
     private static final int ROW_W = 194;
-    private static final int ROW_H = 32;
+    private static final int ROW_H = 30;
     private static final int ROW_U = 0;
-    private static final int ROW_V = 156;
+    private static final int ROW_V = 158;
     private static final int ROW_FIRST = 26;
     private static final int ROW_STEP = 35;
     private static final int LIST_TOP = 16;
     private static final int LIST_BOTTOM = 127;
 
     /** 18x18 Create button sitting in the slot the row art already has. */
-    private static final int ROW_BTN_DX = 169;
-    private static final int ROW_BTN_DY = 8;
+    private static final int ROW_BTN_DX = 170;
+    private static final int ROW_BTN_DY = 6;
     /** 18x18 Create button sitting in the bottom bar slot. */
     private static final int EXIT_BTN_X = 195;
     private static final int EXIT_BTN_Y = 134;
