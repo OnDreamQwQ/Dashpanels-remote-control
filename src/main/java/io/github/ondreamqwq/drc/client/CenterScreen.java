@@ -79,6 +79,10 @@ public class CenterScreen extends Screen {
 
     private static final int[] BOTTOM_BTN_X = {147, 169, 196};
     private static final int TRACK_X = 209;
+    private static final int THUMB_U = 238;
+    private static final int THUMB_V = 57;
+    private static final int THUMB_W = 7;
+    private static final int THUMB_H = 13;
     private static final int ICON_SIZE = 18;
     private static final int ICON_TRASH_U = 16;
     private static final int ICON_TRASH_V = 0;
@@ -248,7 +252,7 @@ public class CenterScreen extends Screen {
         }
 
         for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 6 + i * (TAB_W + 1);
+            int tx = x + 5 + i * (TAB_W + 1);
             int ty = y + TAB_Y;
             int state = i == page ? 2 : (hover(mouseX, mouseY, tx, ty, TAB_W, TAB_H) ? 1 : 0);
             graphics.blit(STRIPS, tx, ty, TAB_U[state], TAB_V, TAB_W, TAB_H);
@@ -258,6 +262,7 @@ public class CenterScreen extends Screen {
         }
 
         scroll = Mth.clamp(scroll, 0, maxScroll());
+        graphics.enableScissor(x, y + LIST_TOP, x + BODY_W, y + LIST_BOTTOM);
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
@@ -270,6 +275,7 @@ public class CenterScreen extends Screen {
             Component empty = Component.translatable("gui.dashpanels_remote_control.center.empty");
             graphics.drawString(font, empty, x + (W - font.width(empty)) / 2, y + LIST_TOP + 16, DIM, false);
         }
+        graphics.disableScissor();
 
         drawScrollbar(graphics, x, y);
         drawBar(graphics, x, y, mouseX, mouseY);
@@ -282,7 +288,7 @@ public class CenterScreen extends Screen {
             graphics.fill(cx + 1, cy + 1, cx + CARD_W - 1, cy + CARD_H - 1, 0x2800FFC4);
         }
 
-        int bx = cx + CARD_W - ICON_SIZE - 7;
+        int bx = cx + CARD_W - ICON_SIZE - 6;
         switch (page) {
             case 0 -> {
                 TerminalRow row = terminals.get(index);
@@ -337,18 +343,15 @@ public class CenterScreen extends Screen {
     }
 
     private void drawScrollbar(GuiGraphics graphics, int x, int y) {
-        int trackX = x + TRACK_X;
-        int trackTop = y + LIST_TOP;
-        int trackHeight = LIST_BOTTOM - LIST_TOP;
-        int content = rowCount() * cardStep();
-        if (content <= trackHeight) {
-            graphics.fill(trackX, trackTop, trackX + 5, trackTop + trackHeight, THUMB);
-            return;
+        int trackX = x + TRACK_X - 1;
+        int trackTop = y + LIST_TOP + 1;
+        int trackHeight = LIST_BOTTOM - LIST_TOP - 2;
+        int span = trackHeight - THUMB_H;
+        int thumbTop = trackTop;
+        if (maxScroll() > 0 && span > 0) {
+            thumbTop = trackTop + (int) Math.round(span * (scroll / (double) maxScroll()));
         }
-        int thumbHeight = Math.max(13, trackHeight * trackHeight / content);
-        int span = trackHeight - thumbHeight;
-        int thumbTop = trackTop + (int) Math.round(span * (scroll / (double) maxScroll()));
-        graphics.fill(trackX, thumbTop, trackX + 5, thumbTop + thumbHeight, THUMB);
+        graphics.blit(WINDOW, trackX, thumbTop, THUMB_U, THUMB_V, THUMB_W, THUMB_H);
     }
 
     private void drawBar(GuiGraphics graphics, int x, int y, int mouseX, int mouseY) {
@@ -358,13 +361,13 @@ public class CenterScreen extends Screen {
 
         if (input != null) {
             input.setX(ix + 4);
-            input.setY(by + 5);
+            input.setY(by + 4);
             input.render(graphics, mouseX, mouseY, 0.0F);
         } else {
             Component hint = Component.translatable(typing
                     ? "gui.dashpanels_remote_control.center.rename_hint"
                     : "gui.dashpanels_remote_control.center.name_hint");
-            graphics.drawString(font, hint, ix + 4, by + 5, DIM, false);
+            graphics.drawString(font, hint, ix + 4, by + 4, DIM, false);
         }
 
         widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
@@ -375,9 +378,7 @@ public class CenterScreen extends Screen {
     private void widgetButton(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
                               boolean enabled) {
         boolean hot = enabled && hover(mouseX, mouseY, bx, by, 18, 18);
-        int wu = hot ? 18 : 0;
-        int wv = hot ? 0 : 18;
-        graphics.blit(WIDGETS, bx, by, wu, wv, 18, 18, 256, 256);
+        graphics.blit(WIDGETS, bx, by, hot ? 18 : 0, 0, 18, 18, 256, 256);
         if (enabled) {
             graphics.blit(ICONS, bx + 1, by + 1, u, v, ICON_SIZE, ICON_SIZE, 256, 256);
         }
@@ -399,7 +400,7 @@ public class CenterScreen extends Screen {
         int y = top() + WIN_Y;
 
         for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 6 + i * (TAB_W + 1);
+            int tx = x + 5 + i * (TAB_W + 1);
             if (hover(mouseX, mouseY, tx, y + TAB_Y, TAB_W, TAB_H)) {
                 if (page != i) {
                     page = i;
@@ -419,7 +420,7 @@ public class CenterScreen extends Screen {
             if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
                 continue;
             }
-            int bx = cx + CARD_W - ICON_SIZE - 7;
+            int bx = cx + CARD_W - ICON_SIZE - 6;
             if (hover(mouseX, mouseY, bx, cy + 12, ICON_SIZE, ICON_SIZE)
                     || hover(mouseX, mouseY, bx, cy + 40, ICON_SIZE, ICON_SIZE)) {
                 return cardButton(i, mouseY < cy + 35);
