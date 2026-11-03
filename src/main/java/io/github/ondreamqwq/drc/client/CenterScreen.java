@@ -274,7 +274,10 @@ public class CenterScreen extends Screen {
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
-            if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
+            if (cy + CARD_H <= y + CLIP_TOP || cy >= y + CLIP_BOTTOM) {
+                continue;
+            }
+            if (mouseY < y + CLIP_TOP || mouseY >= y + CLIP_BOTTOM) {
                 continue;
             }
             drawCard(graphics, i, cx, cy, mouseX, mouseY);
@@ -289,6 +292,8 @@ public class CenterScreen extends Screen {
         if (typing || page == 2) {
             drawBar(graphics, x, y, mouseX, mouseY);
         }
+        widgetButton(graphics, x + BOTTOM_BTN_X[2], y + BAR_TOP, ICON_CONFIRM_U, ICON_CONFIRM_V,
+                mouseX, mouseY, true);
     }
 
     private void drawCard(GuiGraphics graphics, int index, int cx, int cy, int mouseX, int mouseY) {
@@ -395,18 +400,15 @@ public class CenterScreen extends Screen {
         if (typing) {
             widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, true);
             widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, true);
-            widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, false);
             return;
         }
         if (page == 2) {
             widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_EDIT_U, ICON_EDIT_V, mouseX, mouseY, isOwner);
             widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_OPERATE_U, ICON_OPERATE_V, mouseX, mouseY, isOwner);
-            widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, isOwner);
             return;
         }
         widgetButton(graphics, x + BOTTOM_BTN_X[0], by, ICON_ADD_U, ICON_ADD_V, mouseX, mouseY, isOwner);
         widgetButton(graphics, x + BOTTOM_BTN_X[1], by, ICON_CONFIRM_U, ICON_CONFIRM_V, mouseX, mouseY, false);
-        widgetButton(graphics, x + BOTTOM_BTN_X[2], by, ICON_CLOSE_U, ICON_CLOSE_V, mouseX, mouseY, false);
     }
 
     private void widgetButton(GuiGraphics graphics, int bx, int by, int u, int v, int mouseX, int mouseY,
@@ -451,7 +453,10 @@ public class CenterScreen extends Screen {
         int cx = x + CARD_X;
         for (int i = 0; i < rowCount(); i++) {
             int cy = y + LIST_TOP + (int) Math.round(i * cardStep() - scroll);
-            if (cy + CARD_H < y + LIST_TOP || cy > y + LIST_BOTTOM) {
+            if (cy + CARD_H <= y + CLIP_TOP || cy >= y + CLIP_BOTTOM) {
+                continue;
+            }
+            if (mouseY < y + CLIP_TOP || mouseY >= y + CLIP_BOTTOM) {
                 continue;
             }
             int bx = cx + CARD_W - ICON_SIZE - 6;
@@ -466,6 +471,11 @@ public class CenterScreen extends Screen {
             }
         }
 
+        if (hover(mouseX, mouseY, x + BOTTOM_BTN_X[2], y + BAR_TOP, 18, 18)) {
+            click();
+            onClose();
+            return true;
+        }
         if (!typing && page != 2) {
             return super.mouseClicked(mouseX, mouseY, button);
         }
@@ -496,6 +506,7 @@ public class CenterScreen extends Screen {
             return true;
         }
         if (hover(mouseX, mouseY, ix, by, STRIP_W, STRIP_H)) {
+            click();
             makeBox();
             return true;
         }
@@ -550,6 +561,7 @@ public class CenterScreen extends Screen {
             return;
         }
         typing = true;
+        click();
         renaming = row.pos();
         makeBox();
         if (input != null) {
@@ -644,9 +656,9 @@ public class CenterScreen extends Screen {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (draggingBar) {
-            int trackTop = top() + WIN_Y + LIST_TOP;
-            int trackHeight = LIST_BOTTOM - LIST_TOP;
-            float ratio = (float) ((mouseY - trackTop) / Math.max(1.0, trackHeight));
+            int trackTop = top() + WIN_Y + TRACK_TOP;
+            double span = Math.max(1.0, TRACK_BOTTOM - TRACK_TOP - THUMB_H);
+            float ratio = (float) ((mouseY - trackTop - THUMB_H / 2.0) / span);
             scroll = Mth.clamp(ratio * maxScroll(), 0, maxScroll());
             return true;
         }
