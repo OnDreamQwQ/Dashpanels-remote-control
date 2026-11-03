@@ -252,7 +252,7 @@ public class CenterScreen extends Screen {
         }
 
         for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 5 + i * (TAB_W + 1);
+            int tx = x + 5 + i * (TAB_W + 2);
             int ty = y + TAB_Y;
             int state = i == page ? 2 : (hover(mouseX, mouseY, tx, ty, TAB_W, TAB_H) ? 1 : 0);
             graphics.blit(STRIPS, tx, ty, TAB_U[state], TAB_V, TAB_W, TAB_H);
@@ -400,7 +400,7 @@ public class CenterScreen extends Screen {
         int y = top() + WIN_Y;
 
         for (int i = 0; i < tabs.size(); i++) {
-            int tx = x + 5 + i * (TAB_W + 1);
+            int tx = x + 5 + i * (TAB_W + 2);
             if (hover(mouseX, mouseY, tx, y + TAB_Y, TAB_W, TAB_H)) {
                 if (page != i) {
                     page = i;
